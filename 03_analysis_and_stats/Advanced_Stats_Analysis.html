@@ -1,0 +1,4108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SME IPO Institutional Quant & Syndicate Terminal</title>
+  <!-- SheetJS for Single-Request Master .XLSX ArrayBuffer Parsing -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <!-- Chart.js 4.4.1 for Interactive Kaplan-Meier & Random Forest Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    /* =====================================================================
+       1. INSTITUTIONAL QUANT TERMINAL THEME
+       Palette: Deep Navy (#0F172A) | Pure White (#FFFFFF) | Royal Blue (#2563EB) | Gold (#D4AF37)
+       Typography: macOS SF Pro Text / Display + SF Mono (tabular-nums)
+       ===================================================================== */
+    :root {
+      --navy-950: #090E1A;
+      --navy-900: #0F172A;
+      --navy-800: #1E293B;
+      --navy-700: #334155;
+      --royal-600: #2563EB;
+      --royal-700: #1D4ED8;
+      --royal-50:  #EFF6FF;
+      --gold-500:  #D4AF37;
+      --gold-600:  #B5902B;
+      --gold-100:  #FEF9E7;
+      --gold-border: #E5C158;
+      --pure-white: #FFFFFF;
+      --slate-50:  #F8FAFC;
+      --slate-100: #F1F5F9;
+      --slate-200: #E2E8F0;
+      --slate-300: #CBD5E1;
+      --slate-500: #64748B;
+      --slate-700: #334155;
+      --emerald-600: #16A34A;
+      --crimson-600: #DC2626;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      border-radius: 0 !important;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--slate-50);
+      color: var(--navy-900);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif;
+      font-size: 12.5px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .mono {
+      font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* =====================================================================
+       2. FULL-SCREEN DEEP NAVY & GOLD LOADING OVERLAY
+       ===================================================================== */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background-color: var(--navy-900);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+    }
+
+    .loading-overlay.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .gold-spinner {
+      width: 46px;
+      height: 46px;
+      border: 3px solid rgba(212, 175, 55, 0.2);
+      border-top-color: var(--gold-500);
+      border-radius: 50% !important;
+      animation: quantSpin 0.85s linear infinite;
+      margin-bottom: 18px;
+    }
+
+    @keyframes quantSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-title {
+      color: var(--pure-white);
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 6px;
+    }
+
+    .loading-subtitle {
+      color: var(--gold-500);
+      font-size: 11.5px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* =====================================================================
+       3. DEEP NAVY EXECUTIVE HEADER & GOLD-ACCENTED NAVIGATION
+       ===================================================================== */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--navy-900);
+      color: var(--pure-white);
+      border-bottom: 2px solid var(--gold-500);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    }
+
+    .header-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--navy-800);
+      gap: 12px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand-badge {
+      background-color: var(--gold-500);
+      color: var(--navy-900);
+      font-weight: 800;
+      font-size: 11px;
+      padding: 3px 8px;
+      letter-spacing: 0.06em;
+      border: 1px solid var(--gold-border);
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--pure-white);
+      letter-spacing: -0.01em;
+    }
+
+    .header-right-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .feed-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background-color: var(--navy-950);
+      border: 1px solid var(--navy-700);
+      padding: 4px 10px;
+      font-size: 11px;
+      color: #CBD5E1;
+      font-weight: 600;
+      height: 26px;
+    }
+
+    .feed-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50% !important;
+      background-color: #4ADE80;
+      display: inline-block;
+    }
+
+    .header-upload-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: var(--navy-950);
+      color: #94A3B8;
+      border: 1px solid var(--navy-700);
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      height: 26px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .header-upload-btn:hover {
+      color: var(--gold-500);
+      border-color: var(--gold-500);
+      background-color: var(--navy-800);
+    }
+
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      overflow-x: auto;
+      background-color: var(--navy-950);
+      scrollbar-width: thin;
+    }
+
+    .nav-tab {
+      padding: 10px 13px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #94A3B8;
+      background-color: transparent;
+      border: none;
+      border-right: 1px solid var(--navy-800);
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .nav-tab:hover {
+      color: var(--pure-white);
+      background-color: var(--navy-800);
+    }
+
+    .nav-tab.active {
+      color: var(--gold-500);
+      background-color: var(--navy-900);
+      border-bottom: 3px solid var(--gold-500);
+    }
+
+    .nav-tab.quant-tab {
+      color: #E2E8F0;
+    }
+
+    .nav-tab.quant-tab.active {
+      color: var(--gold-500);
+      background-color: var(--navy-900);
+      border-bottom: 3px solid var(--gold-500);
+    }
+
+    /* =====================================================================
+       4. WORKSPACE PANELS, INPUTS & ROYAL BLUE / GOLD BUTTONS
+       ===================================================================== */
+    .workspace {
+      width: 100%;
+      max-width: 1720px;
+      margin: 0 auto;
+      padding: 14px 18px 36px 18px;
+    }
+
+    .control-bar, .quant-card {
+      border: 1px solid var(--slate-200);
+      background-color: var(--pure-white);
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+
+    .quant-card {
+      padding: 20px 22px !important;
+      margin-bottom: 16px !important;
+    }
+
+    .control-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .quant-card-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--slate-200);
+      padding-bottom: 14px !important;
+      margin-bottom: 18px !important;
+      gap: 8px;
+    }
+
+    .quant-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--navy-900);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .quant-subtitle {
+      font-size: 12px;
+      color: var(--slate-500);
+      font-weight: 400;
+      margin-top: 3px;
+    }
+
+    .gold-pill {
+      background-color: var(--gold-100);
+      color: #785C12;
+      border: 1px solid var(--gold-500);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    .royal-pill {
+      background-color: var(--royal-50);
+      color: var(--royal-600);
+      border: 1px solid #BFDBFE;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    .drag-pill {
+      background-color: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FCA5A5;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .field-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--slate-700);
+      letter-spacing: 0.03em;
+    }
+
+    .ui-input, .ui-select {
+      background-color: var(--pure-white);
+      border: 1px solid var(--slate-300);
+      color: var(--navy-900);
+      padding: 4px 9px;
+      font-size: 12px;
+      height: 30px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .ui-input:focus, .ui-select:focus {
+      border-color: var(--royal-600);
+    }
+
+    .ui-btn {
+      background-color: var(--royal-600);
+      color: var(--pure-white);
+      border: 1px solid var(--royal-700);
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      height: 30px;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ui-btn:hover {
+      background-color: var(--royal-700);
+    }
+
+    .ui-btn-outline {
+      background-color: var(--pure-white);
+      color: var(--navy-900);
+      border: 1px solid var(--slate-300);
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      height: 30px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .ui-btn-outline:hover {
+      background-color: var(--slate-100);
+    }
+
+    .ui-btn-outline.active {
+      background-color: var(--navy-900);
+      color: var(--gold-500);
+      border-color: var(--navy-900);
+    }
+
+    /* =====================================================================
+       5. TOP HORIZONTAL DRAG BAR, STICKY 2D HEADERS & SORTABLE COLUMNS
+       ===================================================================== */
+    .top-scroll-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--navy-900);
+      color: #CBD5E1;
+      border: 1px solid var(--navy-800);
+      border-bottom: none;
+      padding: 5px 12px;
+      font-size: 11px;
+    }
+
+    .top-scrollbar-rail {
+      width: 100%;
+      height: 15px;
+      overflow-x: scroll;
+      overflow-y: hidden;
+      background-color: var(--slate-100);
+      border: 1px solid var(--slate-300);
+      border-bottom: none;
+    }
+
+    .top-scrollbar-rail::-webkit-scrollbar {
+      height: 13px;
+      -webkit-appearance: none;
+    }
+
+    .top-scrollbar-rail::-webkit-scrollbar-track {
+      background-color: var(--slate-200);
+    }
+
+    .top-scrollbar-rail::-webkit-scrollbar-thumb {
+      background-color: var(--navy-700);
+      border: 2px solid var(--slate-200);
+    }
+
+    .top-scrollbar-rail::-webkit-scrollbar-thumb:hover {
+      background-color: var(--royal-600);
+    }
+
+    .top-scrollbar-spacer {
+      height: 1px;
+    }
+
+    .table-viewport {
+      width: 100%;
+      max-height: 74vh;
+      overflow-x: auto;
+      overflow-y: auto;
+      background-color: var(--pure-white);
+      border: 1px solid var(--slate-200);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+      scrollbar-width: thin;
+    }
+
+    table.fin-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background-color: var(--pure-white);
+    }
+
+    table.fin-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background-color: var(--navy-900);
+      color: var(--pure-white);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 8px 10px;
+      border-bottom: 2px solid var(--gold-500);
+      border-right: 1px solid var(--navy-800);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    table.fin-table td {
+      padding: 6.5px 10px;
+      border-bottom: 1px solid var(--slate-200);
+      border-right: 1px solid var(--slate-200);
+      color: var(--navy-900);
+      background-color: var(--pure-white);
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    table.fin-table tbody tr:nth-child(even) td {
+      background-color: var(--slate-50);
+    }
+
+    table.fin-table tbody tr:hover td {
+      background-color: var(--royal-50) !important;
+    }
+
+    .col-sno {
+      position: sticky;
+      left: 0;
+      width: 44px;
+      min-width: 44px;
+      max-width: 44px;
+      z-index: 15;
+      text-align: right !important;
+      color: var(--slate-500) !important;
+      font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-variant-numeric: tabular-nums;
+      background-color: var(--pure-white);
+    }
+
+    table.fin-table thead th.col-sno {
+      position: sticky;
+      top: 0;
+      left: 0;
+      z-index: 35 !important;
+      background-color: var(--navy-950) !important;
+      color: var(--gold-500) !important;
+    }
+
+    .col-sticky-name {
+      position: sticky;
+      left: 44px;
+      z-index: 15;
+      border-right: 2px solid var(--slate-300) !important;
+      background-color: var(--pure-white);
+      font-weight: 600;
+    }
+
+    table.fin-table thead th.col-sticky-name {
+      position: sticky;
+      top: 0;
+      left: 44px;
+      z-index: 35 !important;
+      background-color: var(--navy-900) !important;
+    }
+
+    table.fin-table th.col-anchor-wrap,
+    table.fin-table td.col-anchor-wrap {
+      max-width: 350px !important;
+      min-width: 260px !important;
+      width: 350px !important;
+      white-space: normal !important;
+      word-wrap: break-word;
+      line-height: 1.45;
+      vertical-align: top;
+    }
+
+    table.fin-table thead th[data-sort-key] {
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+    }
+    table.fin-table thead th[data-sort-key]:hover {
+      background-color: var(--navy-800) !important;
+    }
+    table.fin-table thead th[data-sort-key]::after {
+      content: ' ⇅';
+      font-size: 10px;
+      color: #64748B;
+      margin-left: 4px;
+      font-weight: 400;
+    }
+    table.fin-table thead th[data-sort-key].sort-asc::after {
+      content: ' ▲';
+      color: var(--gold-500);
+      font-weight: 800;
+    }
+    table.fin-table thead th[data-sort-key].sort-desc::after {
+      content: ' ▼';
+      color: var(--gold-500);
+      font-weight: 800;
+    }
+
+    mark.search-hl {
+      background-color: #FEF08A !important;
+      color: #0F172A !important;
+      padding: 0 2px;
+      font-weight: 700;
+      border-bottom: 1px solid #CA8A04;
+    }
+
+    .text-left { text-align: left !important; }
+    .text-right {
+      text-align: right !important;
+      font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+    }
+
+    .ret-green { color: var(--emerald-600) !important; font-weight: 600 !important; }
+    .ret-red   { color: var(--crimson-600) !important; font-weight: 600 !important; }
+    .ret-muted { color: var(--slate-500) !important; }
+
+    .entity-link {
+      color: var(--navy-900);
+      text-decoration: underline;
+      text-decoration-color: var(--royal-600);
+      text-underline-offset: 2px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .entity-link:hover {
+      color: var(--royal-600);
+    }
+
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background-color: var(--slate-100);
+      border: 1px solid var(--slate-300);
+      color: var(--navy-900);
+      padding: 2px 8px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+    .tag-close {
+      border: none;
+      background: none;
+      color: var(--slate-500);
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 2px;
+    }
+    .tag-close:hover {
+      color: var(--crimson-600);
+    }
+
+    /* =====================================================================
+       6. QUANT MODULE LAYOUTS, EXECUTIVE KPI STRIPS & TOOLTIPS (ⓘ)
+       ===================================================================== */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .km-layout {
+      display: grid;
+      grid-template-columns: 2.1fr 1fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+    .rf-layout {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+    .kmeans-4col-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+    @media (max-width: 1200px) {
+      .calc-grid, .km-layout, .rf-layout { grid-template-columns: 1fr; }
+      .kmeans-4col-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
+      .kmeans-4col-grid { grid-template-columns: 1fr; }
+    }
+
+    .exec-kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 900px) {
+      .exec-kpi-strip { grid-template-columns: 1fr; }
+    }
+
+    .exec-kpi-card {
+      background-color: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-left: 4px solid var(--navy-900);
+      padding: 14px 16px;
+    }
+    .exec-kpi-card.gold-accent {
+      border-left-color: var(--gold-500);
+      background-color: #FFFEF9;
+    }
+    .exec-kpi-card.royal-accent {
+      border-left-color: var(--royal-600);
+    }
+    .exec-kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--slate-500);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .exec-kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--navy-900);
+      margin: 4px 0 2px 0;
+      letter-spacing: -0.02em;
+    }
+    .exec-kpi-desc {
+      font-size: 11.5px;
+      color: var(--slate-700);
+    }
+
+    .q-tip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--gold-500);
+      background-color: var(--navy-900);
+      border: 1px solid var(--gold-500);
+      cursor: help;
+      vertical-align: middle;
+      margin-left: 4px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .q-tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 270px;
+      background-color: var(--navy-900);
+      color: var(--pure-white);
+      border: 1px solid var(--gold-500);
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1.4;
+      text-transform: none;
+      letter-spacing: normal;
+      white-space: normal;
+      text-align: left;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.28) !important;
+    }
+    .q-tip:hover::after {
+      opacity: 1;
+    }
+
+    .meter-cell {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .meter-track {
+      width: 72px;
+      height: 7px;
+      background-color: var(--slate-200);
+      overflow: hidden;
+      display: inline-block;
+    }
+    .meter-fill-navy  { height: 100%; background-color: var(--navy-900); }
+    .meter-fill-royal { height: 100%; background-color: var(--royal-600); }
+    .meter-fill-green { height: 100%; background-color: var(--emerald-600); }
+    .meter-fill-red   { height: 100%; background-color: var(--crimson-600); }
+
+    .slider-row {
+      border: 1px solid var(--slate-200);
+      background-color: var(--slate-50);
+      padding: 10px 14px;
+      margin-bottom: 10px;
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .slider-title {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--navy-900);
+    }
+    .slider-Sub {
+      font-size: 11px;
+      color: var(--slate-500);
+    }
+    .slider-val-box {
+      background-color: var(--navy-900);
+      color: var(--gold-500);
+      padding: 2px 8px;
+      font-weight: 700;
+      font-size: 12.5px;
+      border: 1px solid var(--gold-500);
+    }
+
+    input[type="range"].quant-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--slate-300);
+      outline: none;
+      margin: 6px 0;
+    }
+    input[type="range"].quant-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--royal-600);
+      border: 2px solid var(--navy-900);
+      cursor: pointer;
+    }
+
+    .prob-Readout-Panel, .cox-panel {
+      background-color: var(--navy-900);
+      color: var(--pure-white);
+      border: 1px solid var(--navy-800);
+      border-top: 3px solid var(--gold-500);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .prob-big-number {
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--gold-500);
+      letter-spacing: -0.02em;
+    }
+    .prob-bar-track {
+      width: 100%;
+      height: 18px;
+      background-color: var(--navy-950);
+      border: 1px solid var(--navy-700);
+      margin: 12px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .prob-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--royal-600) 0%, var(--gold-500) 100%);
+      transition: width 0.2s ease-out;
+    }
+    .odds-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+      border-top: 1px solid var(--navy-800);
+      padding-top: 12px;
+    }
+    .odds-cell, .cox-stat-box {
+      background-color: var(--navy-950);
+      border: 1px solid var(--navy-800);
+      padding: 8px 10px;
+      margin-bottom: 8px;
+    }
+    .cox-stat-box-highlight {
+      background-color: var(--navy-950);
+      border: 1px solid var(--gold-500);
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .odds-cell-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: #94A3B8;
+    }
+    .odds-cell-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--pure-white);
+      margin-top: 2px;
+    }
+
+    .cluster-col {
+      border: 1px solid var(--slate-200);
+      background-color: var(--pure-white);
+      display: flex;
+      flex-direction: column;
+    }
+    .cluster-col-header {
+      padding: 10px 12px;
+      background-color: var(--navy-900);
+      color: var(--pure-white);
+      border-bottom: 2px solid var(--gold-500);
+    }
+    .cluster-col-meta {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background-color: var(--slate-100);
+      border-bottom: 1px solid var(--slate-200);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--slate-700);
+    }
+    .cluster-fund-list {
+      max-height: 430px;
+      overflow-y: auto;
+    }
+    .cluster-fund-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6.5px 10px;
+      border-bottom: 1px solid var(--slate-100);
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+    .cluster-fund-item:hover {
+      background-color: var(--royal-50);
+    }
+
+    .network-wrapper {
+      border: 1px solid var(--slate-200);
+      background-color: var(--pure-white);
+      position: relative;
+    }
+    .network-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-top: 1px solid var(--slate-200);
+      background-color: var(--slate-50);
+      font-size: 12px;
+    }
+    .legend-dot-anchor {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 50% !important;
+      background-color: #2563EB;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    .legend-dot-brlm {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 50% !important;
+      background-color: #DC2626;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================================== -->
+  <!-- FULL-SCREEN DEEP NAVY & GOLD LOADING OVERLAY                          -->
+  <!-- ===================================================================== -->
+  <div id="app-loading-overlay" class="loading-overlay">
+    <div class="gold-spinner"></div>
+    <div class="loading-title">Initializing Quantitative Models &amp; Fetching Live Deal Tape...</div>
+    <div class="loading-subtitle mono">SME IPO Institutional Research &amp; Syndicate Terminal</div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- PERSISTENT TOP HEADER & 12-TAB NAVIGATION BAR                         -->
+  <!-- ===================================================================== -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="brand-group">
+        <span class="brand-badge mono">SME-QUANT</span>
+        <span class="brand-title">SME IPO Institutional Econometric &amp; Syndicate Terminal</span>
+      </div>
+      <div class="header-right-group mono">
+        <div class="feed-badge">
+          <span class="feed-dot" id="feed-status-dot"></span>
+          <span id="status-bar">Connecting to Institutional Data Feed...</span>
+        </div>
+        <label class="header-upload-btn" title="Manual .XLSX Workbook Fallback">
+          <span>⬆ Upload .XLSX</span>
+          <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleExcelUpload(event)" />
+        </label>
+      </div>
+    </div>
+
+    <!-- 12 Persistent Navigation Tabs -->
+    <nav class="nav-bar">
+      <button onclick="switchPage('main')" id="nav-main" class="nav-tab active">1. Main Database</button>
+      <button onclick="switchPage('perf')" id="nav-perf" class="nav-tab">2. Performance Tool</button>
+      <button onclick="switchPage('anchor-lb')" id="nav-anchor-lb" class="nav-tab">3. Anchor Leaderboard</button>
+      <button onclick="switchPage('brlm-lb')" id="nav-brlm-lb" class="nav-tab">4. BRLM Leaderboard</button>
+      <button onclick="switchPage('sector-lb')" id="nav-sector-lb" class="nav-tab">5. Sector Leaderboard</button>
+      <button onclick="switchPage('brlm-anchor-matrix')" id="nav-brlm-anchor-matrix" class="nav-tab">6. BRLM × Anchor Matrix</button>
+      <button onclick="switchPage('anchor-syndicate')" id="nav-anchor-syndicate" class="nav-tab">7. Anchor × Anchor Syndicate</button>
+      <button onclick="switchPage('network-map')" id="nav-network-map" class="nav-tab">8. Syndicate Network Map</button>
+      <button onclick="switchPage('model-d')" id="nav-model-d" class="nav-tab quant-tab">9. ★ Multibagger Calc (Model D)</button>
+      <button onclick="switchPage('model-f')" id="nav-model-f" class="nav-tab quant-tab">10. ★ Survival Curves (Model F)</button>
+      <button onclick="switchPage('models-gh')" id="nav-models-gh" class="nav-tab quant-tab">11. ★ ML &amp; K-Means (Models G &amp; H)</button>
+      <button onclick="switchPage('model-e')" id="nav-model-e" class="nav-tab quant-tab">12. ★ Tripartite Matrix (Model E)</button>
+    </nav>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN WORKSPACE                                                        -->
+  <!-- ===================================================================== -->
+  <main class="workspace">
+
+    <!-- =================================================================== -->
+    <!-- PAGE 1: MAIN DATABASE                                               -->
+    <!-- =================================================================== -->
+    <section id="page-main">
+      <div class="control-bar">
+        <div class="filter-group">
+          <input
+            type="text"
+            id="main-search"
+            oninput="renderMainDatabase()"
+            placeholder="Search & highlight Company, BRLM, Anchor, or Sector..."
+            class="ui-input"
+            style="width: 280px;"
+          />
+          <select id="main-sector-select" onchange="renderMainDatabase()" class="ui-select" style="width: 185px;">
+            <option value="ALL">All Sectors</option>
+          </select>
+          <select id="main-brlm-select" onchange="renderMainDatabase()" class="ui-select" style="width: 210px;">
+            <option value="ALL">All BRLMs</option>
+          </select>
+          <select id="main-sort-select" onchange="onMainDropdownSortChange()" class="ui-select" style="width: 190px;">
+            <option value="default">Sort: Chronological Order</option>
+            <option value="size-desc">Sort: Issue Size (High → Low)</option>
+            <option value="1d-desc">Sort: 1D Return % (High → Low)</option>
+            <option value="since-desc">Sort: Since Listing % (High → Low)</option>
+          </select>
+          <button onclick="resetMainFilters()" class="ui-btn-outline">Reset</button>
+          <button onclick="exportTableToCSV('table-main', 'SME_IPO_Main_Database.csv')" class="ui-btn-outline">
+            ⬇ Download CSV
+          </button>
+        </div>
+        <div class="mono" style="font-weight: 700;" id="main-row-count">20 IPOs</div>
+      </div>
+
+      <div class="top-scroll-banner">
+        <span><strong>⇄ Horizontal Scrollbar:</strong> Drag below to navigate across multi-horizon post-listing return columns · Click any column header to sort (▲/▼)</span>
+        <span>Click any Lead Manager or Anchor Investor to inspect their historical track record</span>
+      </div>
+      <div class="top-scrollbar-rail" id="top-scroll-main">
+        <div class="top-scrollbar-spacer" id="top-inner-main"></div>
+      </div>
+
+      <div class="table-viewport" id="body-scroll-main">
+        <table class="fin-table" id="table-main">
+          <thead>
+            <tr>
+              <th class="col-sno">#</th>
+              <th class="text-left col-sticky-name" data-sort-key="company" onclick="toggleTableSort('main', 'company')">Company Name</th>
+              <th class="text-left" data-sort-key="sector" onclick="toggleTableSort('main', 'sector')">Sector</th>
+              <th class="text-left" data-sort-key="date" onclick="toggleTableSort('main', 'date')">Listing Date</th>
+              <th class="text-right" data-sort-key="price" onclick="toggleTableSort('main', 'price')">Issue Price</th>
+              <th class="text-right" data-sort-key="size" onclick="toggleTableSort('main', 'size')">Issue Size (Cr)</th>
+              <th class="text-right" data-sort-key="day1Close" onclick="toggleTableSort('main', 'day1Close')">Day-1 Close</th>
+              <th class="text-left" data-sort-key="brlm" onclick="toggleTableSort('main', 'brlm')">BRLM</th>
+              <th class="text-left col-anchor-wrap" data-sort-key="anchors" onclick="toggleTableSort('main', 'anchors')">Names of Anchors</th>
+              <th class="text-right" data-sort-key="1D return" onclick="toggleTableSort('main', '1D return')">1D return</th>
+              <th class="text-right" data-sort-key="7D return" onclick="toggleTableSort('main', '7D return')">7D return</th>
+              <th class="text-right" data-sort-key="30D return" onclick="toggleTableSort('main', '30D return')">30D return</th>
+              <th class="text-right" data-sort-key="35D return" onclick="toggleTableSort('main', '35D return')">35D return</th>
+              <th class="text-right" data-sort-key="60D return" onclick="toggleTableSort('main', '60D return')">60D return</th>
+              <th class="text-right" data-sort-key="90D return" onclick="toggleTableSort('main', '90D return')">90D return</th>
+              <th class="text-right" data-sort-key="100D return" onclick="toggleTableSort('main', '100D return')">100D return</th>
+              <th class="text-right" data-sort-key="365D return" onclick="toggleTableSort('main', '365D return')">365D return</th>
+              <th class="text-right" data-sort-key="400D return" onclick="toggleTableSort('main', '400D return')">400D return</th>
+              <th class="text-right" data-sort-key="Since Listing Return" onclick="toggleTableSort('main', 'Since Listing Return')">Since Listing Return</th>
+              <th class="text-right" data-sort-key="qib" onclick="toggleTableSort('main', 'qib')">Anchor Allocation % of QIB</th>
+            </tr>
+          </thead>
+          <tbody id="main-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 2: PERFORMANCE TOOL (DEDUPLICATED + SORTABLE + CSV EXPORT)     -->
+    <!-- =================================================================== -->
+    <section id="page-perf" class="hidden">
+      <div class="control-bar" style="flex-direction: column; align-items: stretch; gap: 12px;">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--slate-200); padding-bottom: 8px; gap: 8px;">
+          <div class="filter-group">
+            <span style="font-weight: 700; text-transform: uppercase; font-size: 11px;">Query Mode:</span>
+            <button onclick="setPerfQueryMode('INTERSECTION')" id="btn-mode-intersection" class="ui-btn-outline active">
+              Mode A: Anchor × BRLM Intersection (Single or Joint Pair)
+            </button>
+            <button onclick="setPerfQueryMode('MULTI_ANCHOR')" id="btn-mode-multianchor" class="ui-btn-outline">
+              Mode B: Multi-Anchor Co-Investment (2+ Anchors Together)
+            </button>
+          </div>
+          <div class="filter-group">
+            <input
+              type="text"
+              id="perf-search"
+              oninput="renderPerformanceTool()"
+              placeholder="Search & highlight in results (Company, Anchor, BRLM)..."
+              class="ui-input"
+              style="width: 290px;"
+            />
+            <button onclick="exportTableToCSV('table-perf', 'SME_IPO_Performance_Query.csv')" class="ui-btn-outline">
+              ⬇ Download CSV
+            </button>
+            <span class="mono" style="color: var(--slate-500); font-size: 11.5px;" id="perf-source-indicator">Institutional Mandate &amp; Syndicate Analytics</span>
+          </div>
+        </div>
+
+        <!-- Mode A: Anchor + BRLM Intersection -->
+        <div id="perf-controls-intersection" class="filter-group" style="align-items: flex-end;">
+          <div class="field-stack">
+            <label class="field-label">1. Search &amp; Select Anchor Investor</label>
+            <div class="filter-group">
+              <input type="text" id="intersect-anchor-search" oninput="populateIntersectionDropdowns(false)" placeholder="Filter Anchor..." class="ui-input" style="width: 140px;" />
+              <select id="intersect-anchor-select" onchange="renderPerformanceTool()" class="ui-select" style="width: 280px; font-weight: 600;"></select>
+            </div>
+          </div>
+
+          <div class="field-stack">
+            <label class="field-label">2. Search &amp; Select BRLM (Lead Manager)</label>
+            <div class="filter-group">
+              <input type="text" id="intersect-brlm-search" oninput="populateIntersectionDropdowns(false)" placeholder="Filter BRLM..." class="ui-input" style="width: 140px;" />
+              <select id="intersect-brlm-select" onchange="renderPerformanceTool()" class="ui-select" style="width: 280px; font-weight: 600;"></select>
+            </div>
+          </div>
+
+          <button onclick="resetIntersectionSelectors()" class="ui-btn-outline">Reset Intersection</button>
+        </div>
+
+        <!-- Mode B: Multi-Anchor Co-Investment -->
+        <div id="perf-controls-multianchor" class="hidden" style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="filter-group" style="align-items: flex-end;">
+            <div class="field-stack">
+              <label class="field-label">1. Add Anchor Fund to Co-Investment Basket</label>
+              <div class="filter-group">
+                <input type="text" id="multi-anchor-search" oninput="populateMultiAnchorOptions()" placeholder="Filter Anchor..." class="ui-input" style="width: 140px;" />
+                <select id="multi-anchor-picker" class="ui-select" style="width: 260px; font-weight: 600;"></select>
+                <button onclick="addSelectedAnchorTag()" class="ui-btn">+ Add Anchor</button>
+              </div>
+            </div>
+
+            <div class="field-stack">
+              <label class="field-label">2. Quick-Load Top Co-Investing Pair</label>
+              <select id="multi-pair-quickselect" onchange="applyQuickAnchorPair(this.value)" class="ui-select" style="width: 340px;"></select>
+            </div>
+
+            <button onclick="clearMultiAnchorTags()" class="ui-btn-outline">Clear Basket</button>
+          </div>
+
+          <div style="border: 1px solid var(--slate-200); background-color: var(--slate-50); padding: 6px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+            <span class="field-label" style="margin-right: 4px;">Selected Co-Investors:</span>
+            <div id="multi-anchor-tags-container" class="filter-group"></div>
+          </div>
+        </div>
+
+        <!-- Calculated Executive Scorecard Table -->
+        <div class="table-viewport" style="max-height: none;">
+          <table class="fin-table">
+            <thead>
+              <tr>
+                <th class="text-left">Active Query / Syndicate Selection</th>
+                <th class="text-right">Matched Unique IPOs</th>
+                <th class="text-right">Hit Rate (Win %)</th>
+                <th class="text-right">Avg 1D Listing Return %</th>
+                <th class="text-right">Avg 30D Return %</th>
+                <th class="text-right">Avg 90D Return %</th>
+                <th class="text-right">Avg Since-Listing Return %</th>
+              </tr>
+            </thead>
+            <tbody id="perf-summary-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="top-scroll-banner">
+        <span><strong>⇄ Horizontal Scrollbar:</strong> Consolidated to one row per unique IPO · Click any column header to sort (▲/▼)</span>
+        <span>Click any Anchor or Lead Manager name to cross-drill into their portfolio</span>
+      </div>
+      <div class="top-scrollbar-rail" id="top-scroll-perf">
+        <div class="top-scrollbar-spacer" id="top-inner-perf"></div>
+      </div>
+
+      <div class="table-viewport" id="body-scroll-perf">
+        <table class="fin-table" id="table-perf">
+          <thead>
+            <tr>
+              <th class="col-sno">#</th>
+              <th class="text-left col-sticky-name" data-sort-key="company" onclick="toggleTableSort('perf', 'company')">Company</th>
+              <th class="text-left col-anchor-wrap" data-sort-key="anchor" onclick="toggleTableSort('perf', 'anchor')">Participating Anchor(s)</th>
+              <th class="text-left" data-sort-key="brlm" onclick="toggleTableSort('perf', 'brlm')">Lead Manager (BRLM)</th>
+              <th class="text-left" data-sort-key="date" onclick="toggleTableSort('perf', 'date')">Listing Date</th>
+              <th class="text-right" data-sort-key="size" onclick="toggleTableSort('perf', 'size')">Issue Size (Cr)</th>
+              <th class="text-right" data-sort-key="anchorPct" onclick="toggleTableSort('perf', 'anchorPct')">Anchor % of Issue</th>
+              <th class="text-right" data-sort-key="1D" onclick="toggleTableSort('perf', '1D')">1D</th>
+              <th class="text-right" data-sort-key="7D" onclick="toggleTableSort('perf', '7D')">7D</th>
+              <th class="text-right" data-sort-key="30D" onclick="toggleTableSort('perf', '30D')">30D</th>
+              <th class="text-right" data-sort-key="35D" onclick="toggleTableSort('perf', '35D')">35D</th>
+              <th class="text-right" data-sort-key="60D" onclick="toggleTableSort('perf', '60D')">60D</th>
+              <th class="text-right" data-sort-key="90D" onclick="toggleTableSort('perf', '90D')">90D</th>
+              <th class="text-right" data-sort-key="100D" onclick="toggleTableSort('perf', '100D')">100D</th>
+              <th class="text-right" data-sort-key="365D" onclick="toggleTableSort('perf', '365D')">365D</th>
+              <th class="text-right" data-sort-key="400D" onclick="toggleTableSort('perf', '400D')">400D</th>
+              <th class="text-right" data-sort-key="SinceListing" onclick="toggleTableSort('perf', 'SinceListing')">Since Listing</th>
+              <th class="text-left col-anchor-wrap" data-sort-key="anchorNorm" onclick="toggleTableSort('perf', 'anchorNorm')">Normalized Anchor Entity</th>
+              <th class="text-left" data-sort-key="brlmNorm" onclick="toggleTableSort('perf', 'brlmNorm')">Normalized BRLM Entity</th>
+            </tr>
+          </thead>
+          <tbody id="perf-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 3: ANCHOR LEADERBOARD                                          -->
+    <!-- =================================================================== -->
+    <section id="page-anchor-lb" class="hidden">
+      <div class="control-bar">
+        <div class="filter-group">
+          <span style="font-weight: 700;">Institutional Anchor Leaderboard</span>
+          <input type="text" id="anchor-lb-search" oninput="renderAnchorLeaderboard()" placeholder="Filter & highlight Anchor Name..." class="ui-input" style="width: 250px;" />
+        </div>
+        <span style="color: var(--slate-500); font-size: 11.5px;">Performance ranked by average post-listing excess return across qualified SME mandates</span>
+      </div>
+
+      <div class="top-scrollbar-rail" id="top-scroll-anchor-lb">
+        <div class="top-scrollbar-spacer" id="top-inner-anchor-lb"></div>
+      </div>
+      <div class="table-viewport" id="body-scroll-anchor-lb">
+        <table class="fin-table" id="table-anchor-lb">
+          <thead>
+            <tr>
+              <th class="col-sno">#</th>
+              <th class="text-left col-sticky-name">Anchor Name</th>
+              <th class="text-right">Rank</th>
+              <th class="text-right">Total IPOs</th>
+              <th class="text-right">Avg Since-Listing Return</th>
+              <th class="text-right">Win Rate</th>
+            </tr>
+          </thead>
+          <tbody id="anchor-lb-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 4: BRLM LEADERBOARD                                            -->
+    <!-- =================================================================== -->
+    <section id="page-brlm-lb" class="hidden">
+      <div class="control-bar">
+        <div class="filter-group">
+          <span style="font-weight: 700;">Book Running Lead Manager (BRLM) Leaderboard</span>
+          <input type="text" id="brlm-lb-search" oninput="renderBrlmLeaderboard()" placeholder="Filter & highlight BRLM Name..." class="ui-input" style="width: 250px;" />
+        </div>
+        <span style="color: var(--slate-500); font-size: 11.5px;">Underwriter league table ranked by mean post-listing performance across anchor-backed issues</span>
+      </div>
+
+      <div class="top-scrollbar-rail" id="top-scroll-brlm-lb">
+        <div class="top-scrollbar-spacer" id="top-inner-brlm-lb"></div>
+      </div>
+      <div class="table-viewport" id="body-scroll-brlm-lb">
+        <table class="fin-table" id="table-brlm-lb">
+          <thead>
+            <tr>
+              <th class="col-sno">#</th>
+              <th class="text-left col-sticky-name">BRLM Name</th>
+              <th class="text-right">Rank</th>
+              <th class="text-right">Total IPOs</th>
+              <th class="text-right">Avg Since-Listing Return</th>
+              <th class="text-right">Win Rate</th>
+            </tr>
+          </thead>
+          <tbody id="brlm-lb-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 5: SECTOR LEADERBOARD                                          -->
+    <!-- =================================================================== -->
+    <section id="page-sector-lb" class="hidden">
+      <div class="control-bar">
+        <div class="filter-group">
+          <span style="font-weight: 700;">Industry Sector Leaderboard</span>
+          <input type="text" id="sector-lb-search" oninput="renderSectorLeaderboard()" placeholder="Filter & highlight Sector..." class="ui-input" style="width: 250px;" />
+        </div>
+        <span style="color: var(--slate-500); font-size: 11.5px;">Macro sector performance ranked by deal volume, secondary market compounding, and hit rate</span>
+      </div>
+
+      <div class="top-scrollbar-rail" id="top-scroll-sector-lb">
+        <div class="top-scrollbar-spacer" id="top-inner-sector-lb"></div>
+      </div>
+      <div class="table-viewport" id="body-scroll-sector-lb">
+        <table class="fin-table" id="table-sector-lb">
+          <thead>
+            <tr>
+              <th class="col-sno">#</th>
+              <th class="text-left col-sticky-name">Sector</th>
+              <th class="text-right">Rank</th>
+              <th class="text-right">Total IPOs</th>
+              <th class="text-right">Avg Since-Listing Return</th>
+              <th class="text-right">Win Rate</th>
+            </tr>
+          </thead>
+          <tbody id="sector-lb-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 6: BRLM × ANCHOR MATRIX                                        -->
+    <!-- =================================================================== -->
+    <section id="page-brlm-anchor-matrix" class="hidden">
+      <div class="control-bar">
+        <div class="filter-group">
+          <span style="font-weight: 700;">BRLM × Anchor Syndicate Matrix</span>
+          <input type="text" id="matrix-brlm-search" oninput="renderBrlmAnchorMatrix()" placeholder="Filter BRLM Name..." class="ui-input" style="width: 210px;" />
+          <input type="text" id="matrix-anchor-search" oninput="renderBrlmAnchorMatrix()" placeholder="Filter Anchor Name..." class="ui-input" style="width: 210px;" />
+          <select id="matrix-min-deals" onchange="renderBrlmAnchorMatrix()" class="ui-select" style="width: 155px;">
+            <option value="1">Min 1+ Joint Deals</option>
+            <option value="2">Min 2+ Joint Deals</option>
+            <option value="3">Min 3+ Joint Deals</option>
+            <option value="5">Min 5+ Joint Deals</option>
+          </select>
+        </div>
+        <span style="color: var(--slate-500); font-size: 11.5px;">Bilateral underwriting partnerships ranked by recurring joint deal activity and secondary alpha</span>
+      </div>
+
+      <div class="top-scrollbar-rail" id="top-scroll-matrix">
+        <div class="top-scrollbar-spacer" id="top-inner-matrix"></div>
+      </div>
+      <div class="table-viewport" id="body-scroll-matrix">
+        <table class="fin-table" id="table-matrix">
+          <thead>
+            <tr>
+              <th class="col-sno">#</th>
+              <th class="text-left col-sticky-name">BRLM Name</th>
+              <th class="text-left">Anchor Name</th>
+              <th class="text-right">Joint Deals Count</th>
+              <th class="text-right">Win Rate %</th>
+              <th class="text-right">Avg Listing Return %</th>
+              <th class="text-right">Avg Since-Listing Return %</th>
+            </tr>
+          </thead>
+          <tbody id="brlm-anchor-matrix-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 7: ANCHOR × ANCHOR SYNDICATE                                   -->
+    <!-- =================================================================== -->
+    <section id="page-anchor-syndicate" class="hidden">
+      <div class="control-bar">
+        <div class="filter-group">
+          <span style="font-weight: 700;">Anchor × Anchor Co-Investment Leaderboard</span>
+          <input type="text" id="syndicate-anchor-search" oninput="renderAnchorSyndicateLeaderboard()" placeholder="Search Anchor A or Anchor B..." class="ui-input" style="width: 240px;" />
+          <select id="syndicate-min-deals" onchange="renderAnchorSyndicateLeaderboard()" class="ui-select" style="width: 175px;">
+            <option value="1">Min 1+ Co-Investments</option>
+            <option value="2" selected>Min 2+ Co-Investments</option>
+            <option value="3">Min 3+ Co-Investments</option>
+          </select>
+        </div>
+        <span style="color: var(--slate-500); font-size: 11.5px;">Institutional co-investment voting blocs ranked by shared mandate frequency and syndicate return</span>
+      </div>
+
+      <div class="top-scrollbar-rail" id="top-scroll-syndicate">
+        <div class="top-scrollbar-spacer" id="top-inner-syndicate"></div>
+      </div>
+      <div class="table-viewport" id="body-scroll-syndicate">
+        <table class="fin-table" id="table-syndicate">
+          <thead>
+            <tr>
+              <th class="col-sno">#</th>
+              <th class="text-left col-sticky-name">Anchor A</th>
+              <th class="text-left">Anchor B</th>
+              <th class="text-right">Co-Invested IPO Count</th>
+              <th class="text-right">Syndicate Avg Return %</th>
+              <th class="text-right">Win Rate %</th>
+              <th class="text-left">Co-Invested IPOs</th>
+            </tr>
+          </thead>
+          <tbody id="anchor-syndicate-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 8: INTERACTIVE SYNDICATE NETWORK GRAPH                         -->
+    <!-- =================================================================== -->
+    <section id="page-network-map" class="hidden">
+      <div class="control-bar">
+        <div>
+          <div style="font-weight: 700; font-size: 14px;">SME IPO Syndicate Network: Anchor × BRLM Topology</div>
+          <div style="color: var(--slate-500); font-size: 11.5px;">Hover over any node to inspect its joint deal degree · Drag nodes to rearrange · Click any node to open its deal tape</div>
+        </div>
+        <div class="filter-group">
+          <label class="field-label">Edge Filter:</label>
+          <select id="network-min-deals" onchange="buildAndRenderNetworkGraph()" class="ui-select" style="width: 165px;">
+            <option value="1">Min 1+ Joint Deals</option>
+            <option value="2" selected>Min 2+ Joint Deals</option>
+            <option value="3">Min 3+ Joint Deals</option>
+          </select>
+          <input type="text" id="network-search" oninput="drawNetworkFrame()" placeholder="Highlight entity..." class="ui-input" style="width: 190px;" />
+          <button onclick="buildAndRenderNetworkGraph()" class="ui-btn-outline">Re-Layout Graph</button>
+        </div>
+      </div>
+
+      <div class="network-wrapper">
+        <canvas id="syndicate-canvas" width="1440" height="700" style="width: 100%; height: 680px; display: block; cursor: grab;"></canvas>
+        <div class="network-legend">
+          <div class="filter-group" style="gap: 18px;">
+            <span><strong>Entity Type:</strong></span>
+            <span><span class="legend-dot-anchor"></span><strong>Anchor Investor (Blue)</strong></span>
+            <span><span class="legend-dot-brlm"></span><strong>BRLM Lead Manager (Red)</strong></span>
+            <span style="margin-left: 12px;"><strong>Deals (Edge Width):</strong> — 2 &nbsp; ━ 4 &nbsp; ━━ 6 &nbsp; ━━━ 8 &nbsp; ━━━━ 10+</span>
+          </div>
+          <span id="network-stats-label" class="mono" style="color: var(--slate-500);">Nodes: 0 | Edges: 0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 9: MULTIBAGGER PROBABILITY CALCULATOR (MODEL D)                -->
+    <!-- =================================================================== -->
+    <section id="page-model-d" class="quant-card hidden">
+      <div class="quant-card-header">
+        <div>
+          <div class="quant-card-title">
+            <span>Model D: Multibagger Probability Calculator</span>
+            <span class="gold-pill">100%+ Post-Listing Return Engine</span>
+            <span class="royal-pill">N = 406 SME IPOs</span>
+          </div>
+          <div class="quant-subtitle">
+            Translates Day-1 listing momentum, institutional anchor backing, and deal size into the statistical likelihood of a stock doubling (2.0x+).
+          </div>
+        </div>
+        <div class="filter-group">
+          <button onclick="applyCalculatorPreset('TIER1_ANCHORED')" class="ui-btn-outline">Preset: High-Conviction Anchored</button>
+          <button onclick="applyCalculatorPreset('MEDIAN_SME')" class="ui-btn-outline">Preset: Median SME Issue</button>
+          <button onclick="applyCalculatorPreset('UNANCHORED_TRAP')" class="ui-btn-outline">Preset: Unanchored Dilution</button>
+        </div>
+      </div>
+
+      <div class="exec-kpi-strip">
+        <div class="exec-kpi-card gold-accent">
+          <div class="exec-kpi-label">
+            Day-1 Momentum Multiplier
+            <span class="q-tip" data-tip="Odds Ratio (e^β = 5.28): A stock that gains +100% on listing day has 5.28x higher odds of going on to double overall compared to a flat listing.">ⓘ</span>
+          </div>
+          <div class="exec-kpi-value mono">5.28x Odds</div>
+          <div class="exec-kpi-desc">Strong listing pops signal institutional accumulation, not a retail top.</div>
+        </div>
+        <div class="exec-kpi-card royal-accent">
+          <div class="exec-kpi-label">
+            30% Anchor Book Lift
+            <span class="q-tip" data-tip="Each +1% of the issue allocated to Anchors increases multibagger odds by +4.26% (OR = 1.0426, p = 0.0018). Over a 30% allocation, odds multiply by 3.5x.">ⓘ</span>
+          </div>
+          <div class="exec-kpi-value mono">+3.5x Lift</div>
+          <div class="exec-kpi-desc">A full 30% anchor book triples the odds of doubling vs. unanchored IPOs.</div>
+        </div>
+        <div class="exec-kpi-card">
+          <div class="exec-kpi-label">
+            Unanchored Base Rate
+            <span class="q-tip" data-tip="Baseline Intercept Probability: An IPO with 0% Anchor backing and 0% Day-1 pop has only a 6.8% historical probability of becoming a multibagger.">ⓘ</span>
+          </div>
+          <div class="exec-kpi-value mono">6.8% Base</div>
+          <div class="exec-kpi-desc">Unanchored fixed-price issues rarely compound in the secondary market.</div>
+        </div>
+      </div>
+
+      <div class="calc-grid">
+        <div>
+          <div class="slider-row">
+            <div class="slider-header">
+              <div>
+                <div class="slider-title">
+                  1. Day-1 Listing Gain %
+                  <span class="q-tip" data-tip="Percentage gain on listing day close vs. issue price. Statistically the strongest momentum indicator (p < 0.0001).">ⓘ</span>
+                </div>
+                <div class="slider-Sub">Drag to test how listing-day demand impacts long-term compounding</div>
+              </div>
+              <span class="slider-val-box mono" id="lbl-pop1d">+50.0%</span>
+            </div>
+            <input type="range" id="slider-pop1d" class="quant-slider" min="-50" max="200" step="1" value="50" oninput="updateMultibaggerCalculator()" />
+            <div style="display:flex; justify-content:space-between; font-size:10.5px; color:#64748B;" class="mono">
+              <span>-50% (Discount)</span>
+              <span>0% (Flat)</span>
+              <span>+90% (NSE Cap)</span>
+              <span>+200%</span>
+            </div>
+          </div>
+
+          <div class="slider-row">
+            <div class="slider-header">
+              <div>
+                <div class="slider-title">
+                  2. Anchor Allocation % of Total Issue
+                  <span class="q-tip" data-tip="Percentage of total shares allotted to institutional Anchor Investors pre-IPO (capped at 30% of the issue in most SME book-built mandates).">ⓘ</span>
+                </div>
+                <div class="slider-Sub">Above 15% unlocks price-support survival; 26%–30% triggers peak alpha</div>
+              </div>
+              <span class="slider-val-box mono" id="lbl-anchor-alloc">28.5%</span>
+            </div>
+            <input type="range" id="slider-anchor-alloc" class="quant-slider" min="0" max="30" step="0.5" value="28.5" oninput="updateMultibaggerCalculator()" />
+            <div style="display:flex; justify-content:space-between; font-size:10.5px; color:#64748B;" class="mono">
+              <span>0% (Unanchored)</span>
+              <span>15% (Support Threshold)</span>
+              <span>25% (Alpha Inflection)</span>
+              <span>30% (Max Cap)</span>
+            </div>
+          </div>
+
+          <div class="slider-row" style="margin-bottom: 0;">
+            <div class="slider-header">
+              <div>
+                <div class="slider-title">
+                  3. Total Issue Size (₹ Cr)
+                  <span class="q-tip" data-tip="Total capital raised in ₹ Crores. In linear logistic regression, raw size has minimal drag (OR = 0.9987, p = 0.76), meaning both ₹25 Cr and ₹100 Cr IPOs can double if anchored properly.">ⓘ</span>
+                </div>
+                <div class="slider-Sub">Controls for supply volume (Statistically neutral in linear logit: p = 0.76)</div>
+              </div>
+              <span class="slider-val-box mono" id="lbl-issue-size">₹45.0 Cr</span>
+            </div>
+            <input type="range" id="slider-issue-size" class="quant-slider" min="5" max="250" step="1" value="45" oninput="updateMultibaggerCalculator()" />
+            <div style="display:flex; justify-content:space-between; font-size:10.5px; color:#64748B;" class="mono">
+              <span>₹5 Cr (Micro)</span>
+              <span>₹50 Cr (Sweet Spot)</span>
+              <span>₹125 Cr</span>
+              <span>₹250 Cr (Large SME)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="prob-Readout-Panel">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#94A3B8; font-weight:700;">
+                  Estimated Probability of Doubling (Return &ge; 100%)
+                </div>
+                <div class="prob-big-number mono" id="calc-prob-display">34.2%</div>
+              </div>
+              <div id="calc-regime-badge" class="gold-pill">★ Tier-1 Setup</div>
+            </div>
+
+            <div class="prob-bar-track">
+              <div id="calc-prob-bar" class="prob-bar-fill" style="width: 34.2%;"></div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; font-size:11.5px; color:#E2E8F0;" class="mono">
+              <span id="calc-odds-mult">7.1x Higher Odds vs. Unanchored Baseline</span>
+              <span>
+                <span id="calc-log-odds" style="color:#94A3B8;">Log-Odds: -0.655</span>
+                <span class="q-tip" data-tip="Log-Odds (z) is the raw linear score before converting to a 0%–100% probability via P = 1 / (1 + e^-z). A score of 0.00 equals a 50% coin-flip probability.">ⓘ</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="odds-grid">
+            <div class="odds-cell">
+              <div class="odds-cell-label">Day-1 Momentum Impact</div>
+              <div class="odds-cell-val mono" id="or-pop1d">OR: 5.28x</div>
+              <div style="font-size:10.5px; color:#94A3B8;" class="mono" id="contrib-pop1d">Score Lift: +0.832</div>
+            </div>
+            <div class="odds-cell">
+              <div class="odds-cell-label">Anchor Book Impact</div>
+              <div class="odds-cell-val mono" id="or-anchor">OR: 1.043x / %</div>
+              <div style="font-size:10.5px; color:#94A3B8;" class="mono" id="contrib-anchor">Score Lift: +1.189</div>
+            </div>
+            <div class="odds-cell">
+              <div class="odds-cell-label">Deal Size Drag</div>
+              <div class="odds-cell-val mono" id="or-size">OR: 0.999x / Cr</div>
+              <div style="font-size:10.5px; color:#94A3B8;" class="mono" id="contrib-size">Score Lift: -0.058</div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px; font-size:11.5px; color:#CBD5E1; border-top:1px solid #1E293B; padding-top:10px;" id="calc-quant-note"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 10: SURVIVAL RISK CURVES (MODEL F & LOCK-IN DECAY MODEL B)     -->
+    <!-- =================================================================== -->
+    <section id="page-model-f" class="quant-card hidden">
+      <div class="quant-card-header">
+        <div>
+          <div class="quant-card-title">
+            <span>Model F: Post-Listing Price Support &amp; Survival Analysis</span>
+            <span class="gold-pill">Kaplan-Meier Step Curves (400 Trading Days)</span>
+            <span class="royal-pill">N = 447 SME IPOs</span>
+          </div>
+          <div class="quant-subtitle">
+            Tracks the percentage of IPOs that successfully hold above their issue price over 400 trading days, comparing well-anchored deals (&gt;15%) against unanchored deals (&le;15%).
+          </div>
+        </div>
+        <div class="filter-group">
+          <button onclick="toggleKmConfidenceBand()" class="ui-btn-outline">Toggle Day-30 &amp; Day-90 Lock-In Lines</button>
+        </div>
+      </div>
+
+      <div class="km-layout">
+        <div style="border: 1px solid var(--slate-200); padding: 16px; background: #FFFFFF;">
+          <div style="height: 360px; position: relative;">
+            <canvas id="km-survival-chart"></canvas>
+          </div>
+          <div class="table-viewport" style="margin-top: 14px; max-height: none;">
+            <table class="fin-table">
+              <thead>
+                <tr>
+                  <th class="text-left">Cohort Regime</th>
+                  <th class="text-right">Day 0</th>
+                  <th class="text-right">Day 1</th>
+                  <th class="text-right">Day 7</th>
+                  <th class="text-right">Day 30 (50% Unlock)</th>
+                  <th class="text-right">Day 35</th>
+                  <th class="text-right">Day 60</th>
+                  <th class="text-right">Day 90 (100% Unlock)</th>
+                  <th class="text-right">Day 100</th>
+                  <th class="text-right">Day 365</th>
+                  <th class="text-right">Day 400</th>
+                </tr>
+              </thead>
+              <tbody id="km-table-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="cox-panel">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+              <span style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--gold-500); letter-spacing:0.04em;">
+                Executive Risk &amp; Lock-In Findings
+              </span>
+              <span class="gold-pill">Cox Hazard Model</span>
+            </div>
+
+            <div class="cox-stat-box-highlight">
+              <div style="font-size:11px; text-transform:uppercase; color:#94A3B8; display:flex; align-items:center; justify-content:space-between;">
+                <span>1. Issue-Break Risk Reduction (30% Anchor Book)</span>
+                <span class="q-tip" data-tip="Cox Hazard Ratio (HR = 0.9660): Each 1% allocated to Anchors cuts the daily risk of breaking below issue price by 3.4%. Across a 30% allocation, crash risk drops by 64.6% (1 - 0.966^30).">ⓘ</span>
+              </div>
+              <div style="font-size:28px; font-weight:800; color:var(--gold-500); margin:4px 0;" class="mono">-64.6% Crash Risk</div>
+              <div style="font-size:11.5px; color:#E2E8F0;">
+                Hazard Ratio <strong class="mono">HR = 0.966</strong> per 1% allocated. Institutional anchors act as a structural floor in secondary trading.
+              </div>
+            </div>
+
+            <div class="cox-stat-box">
+              <div style="font-size:11px; text-transform:uppercase; color:#94A3B8;">2. Day-100 Survival Gap (Anchored vs. Unanchored)</div>
+              <div style="font-size:22px; font-weight:800; color:#4ADE80; margin:4px 0;" class="mono">45.0% vs. 18.0%</div>
+              <div style="font-size:11.5px; color:#CBD5E1;">
+                Anchored IPOs are <strong>2.5x more likely</strong> to hold above issue price at Day 100. Two-thirds (66.5%) of unanchored IPOs break issue price on Day 1.
+              </div>
+            </div>
+
+            <div class="cox-stat-box" style="margin-bottom:0;">
+              <div style="font-size:11px; text-transform:uppercase; color:#94A3B8; display:flex; align-items:center; justify-content:space-between;">
+                <span>3. Anchor Lock-In Expiry Test (Model B)</span>
+                <span class="q-tip" data-tip="Tests whether stocks crash when 50% of anchor shares unlock at Day 30 and the remaining 50% unlock at Day 90. Both p-values are > 0.10, proving there is no statistically significant crash.">ⓘ</span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;" class="mono">
+                <div style="border-right:1px solid #1E293B; padding-right:8px;">
+                  <div style="font-size:10.5px; color:#94A3B8;">Day-30 (50% Unlock)</div>
+                  <div style="font-size:15px; font-weight:700; color:#F8FAFC; margin:2px 0;">-3.19%</div>
+                  <div style="font-size:10.5px; color:#4ADE80;">No Crash (p = 0.11)</div>
+                </div>
+                <div>
+                  <div style="font-size:10.5px; color:#94A3B8;">Day-90 (100% Unlock)</div>
+                  <div style="font-size:15px; font-weight:700; color:#F8FAFC; margin:2px 0;">-1.10%</div>
+                  <div style="font-size:10.5px; color:#4ADE80;">Noise Only (p = 0.67)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="font-size:11.5px; color:#CBD5E1; border-top:1px solid #1E293B; padding-top:10px; margin-top:12px;">
+            <strong>Executive Takeaway:</strong> Retail investors fear Day-30 and Day-90 anchor lock-in expiries, but the data proves the market absorbs anchor supply smoothly.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 11: MACHINE LEARNING LEADERBOARDS (MODELS G & H)               -->
+    <!-- =================================================================== -->
+    <section id="page-models-gh" class="quant-card hidden">
+      <div class="quant-card-header">
+        <div>
+          <div class="quant-card-title">
+            <span>Models G &amp; H: Machine Learning Factor Drivers &amp; Institutional Fund Archetypes</span>
+            <span class="gold-pill">Random Forest (500 Trees)</span>
+            <span class="royal-pill">K-Means Clustering (66 Active Funds)</span>
+          </div>
+          <div class="quant-subtitle">
+            Identifies which deal variables matter most for predicting returns, and classifies all 66 active Anchor funds into 4 behavioral archetypes.
+          </div>
+        </div>
+        <div class="filter-group">
+          <input
+            type="text"
+            id="kmeans-search"
+            oninput="renderKMeansClusters()"
+            placeholder="Search & highlight across 66 clustered funds..."
+            class="ui-input"
+            style="width: 260px;"
+          />
+        </div>
+      </div>
+
+      <div class="rf-layout" style="margin-bottom: 20px;">
+        <div style="border: 1px solid var(--slate-200); padding: 14px; background: #FFFFFF;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-weight:700; font-size:12px; text-transform:uppercase; color:var(--navy-900);">
+              Model G: What Drives SME Post-Listing Returns? (Random Forest)
+            </span>
+            <span class="mono" style="font-size:11px; color:var(--slate-500);">500 Decision Trees</span>
+          </div>
+          <div style="height: 230px; position: relative;">
+            <canvas id="rf-importance-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="table-viewport" style="max-height: none;">
+          <table class="fin-table">
+            <thead>
+              <tr>
+                <th class="col-sno">#</th>
+                <th class="text-left">Deal Factor</th>
+                <th class="text-right">
+                  Prediction Impact (%IncMSE)
+                  <span class="q-tip" data-tip="% Increase in Mean Squared Error: Measures how much model prediction accuracy drops if this variable is removed. Higher % means the factor is more critical for predicting returns.">ⓘ</span>
+                </th>
+                <th class="text-right">
+                  Regime Splitting Power
+                  <span class="q-tip" data-tip="Node Purity (IncNodePurity): Measures how effectively this variable separates winners from losers inside the decision trees. Sector and BRLM dominate regime splitting.">ⓘ</span>
+                </th>
+                <th class="text-left">Plain-English Takeaway</th>
+              </tr>
+            </thead>
+            <tbody id="rf-importance-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 10px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;">
+        <span style="font-weight:700; font-size:12px; text-transform:uppercase; color:var(--navy-900);">
+          Model H: K-Means Institutional Anchor Fund Directory (4 Behavioral Archetypes)
+          <span class="q-tip" data-tip="Unsupervised K-Means clustering groups all 66 active anchor funds based on Deal Volume, Win Rate, and Average Returns. The first 2 principal components explain 73.71% of variance.">ⓘ</span>
+        </span>
+        <span class="mono" style="font-size:11px; color:var(--slate-500);">
+          Click any fund name to inspect its full deal tape in the Performance Tool
+        </span>
+      </div>
+
+      <div class="kmeans-4col-grid" id="kmeans-4col-container"></div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 12: TRIPARTITE GOLDEN SYNDICATE MATRIX (MODEL E)               -->
+    <!-- =================================================================== -->
+    <section id="page-model-e" class="quant-card hidden">
+      <div class="quant-card-header">
+        <div>
+          <div class="quant-card-title">
+            <span>Model E: Tripartite Golden Syndicate Matrix (BRLM × Anchor × Sector)</span>
+            <span class="gold-pill">R² = 82.75% Explanatory Power</span>
+            <span class="royal-pill">p = 7.95e-05 ***</span>
+          </div>
+          <div class="quant-subtitle">
+            Our highest-conviction econometric finding: knowing the exact 3-way combination of <strong>Lead Manager + Anchor Investor + Sector</strong> explains <strong>82.75%</strong> of return variation.
+          </div>
+        </div>
+        <div class="filter-group">
+          <input
+            type="text"
+            id="tripartite-search"
+            oninput="renderTripartiteMatrix()"
+            placeholder="Search & highlight BRLM, Anchor, or Sector..."
+            class="ui-input"
+            style="width: 240px;"
+          />
+          <select id="tripartite-tier-filter" onchange="renderTripartiteMatrix()" class="ui-select" style="width: 220px;">
+            <option value="ALL">All Alignments (19 Triads)</option>
+            <option value="GOLDEN">★ Tier-1 Golden Syndicates Only</option>
+            <option value="DRAG">⚠️ Adverse Underwriting Drag Only</option>
+          </select>
+          <button onclick="toggleTripartiteStats()" id="btn-toggle-tri-stats" class="ui-btn-outline">
+            Show Academic Stats (SE / t-Stat)
+          </button>
+        </div>
+      </div>
+
+      <div class="top-scroll-banner">
+        <span><strong>⇄ Executive Tripartite Matrix:</strong> Focus capital allocation on ★ Tier-1 Golden Syndicates and avoid ⚠️ Adverse Drag combinations</span>
+        <span>Click any BRLM, Anchor, or Sector to drill directly into the underlying IPOs</span>
+      </div>
+      <div class="top-scrollbar-rail" id="top-scroll-tripartite">
+        <div class="top-scrollbar-spacer" id="top-inner-tripartite"></div>
+      </div>
+
+      <div class="table-viewport" id="body-scroll-tripartite">
+        <table class="fin-table" id="table-tripartite">
+          <thead id="tripartite-thead"></thead>
+          <tbody id="tripartite-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // =========================================================================
+    // 1. PROPRIETARY INSTITUTIONAL BASELINE DATASET (CACHED FALLBACK)
+    // =========================================================================
+    let db = {
+      mainDatabase: [
+        { " ": "Anya Polytech & Fertilizers Limited", "Sector": "Fertilizers & Agrochemicals", "Listing Date": "02 Jan 2025", "Day-1 Close": "17.95", "Issue Price": "14.00", "1D return": "28.21%", "7D return": "23.21%", "30D return": "58.21%", "35D return": "68.93%", "60D return": "62.86%", "90D return": "55.71%", "100D return": "55.00%", "365D return": "39.29%", "400D return": "49.64%", "Since Listing Return": "25.00%", "Issue Size": "44.80", "BRLM": "Beeline Capital Advisors Private Limited", "Anchor Allocation % of QIB": "Fixed Price Issue", "Names of Anchors": "Fixed Price Issue" },
+        { " ": "Citichem India Limited", "Sector": "Specialty Chemicals", "Listing Date": "03 Jan 2025", "Day-1 Close": "68.28", "Issue Price": "70.00", "1D return": "-2.46%", "7D return": "-24.50%", "30D return": "-48.93%", "35D return": "-42.99%", "60D return": "-57.93%", "90D return": "-61.91%", "100D return": "-61.53%", "365D return": "-66.57%", "400D return": "-75.36%", "Since Listing Return": "-75.71%", "Issue Size": "12.60", "BRLM": "Horizon Management Private Limited", "Anchor Allocation % of QIB": "Fixed Price Issue", "Names of Anchors": "Fixed Price Issue" },
+        { " ": "Technichem Organics Limited", "Sector": "Specialty Chemicals", "Listing Date": "07 Jan 2025", "Day-1 Close": "60.11", "Issue Price": "55.00", "1D return": "9.29%", "7D return": "3.20%", "30D return": "4.15%", "35D return": "-3.95%", "60D return": "-12.73%", "90D return": "-17.09%", "100D return": "-2.78%", "365D return": "-4.55%", "400D return": "-12.75%", "Since Listing Return": "5.00%", "Issue Size": "25.25", "BRLM": "Shreni Shares Limited", "Anchor Allocation % of QIB": "Fixed Price Issue", "Names of Anchors": "Fixed Price Issue" },
+        { " ": "Leo Dryfruits & Spices Trading Limited", "Sector": "Food & Agri Products", "Listing Date": "08 Jan 2025", "Day-1 Close": "71.36", "Issue Price": "52.00", "1D return": "37.23%", "7D return": "17.37%", "30D return": "5.33%", "35D return": "4.52%", "60D return": "0.71%", "90D return": "4.81%", "100D return": "6.83%", "365D return": "19.71%", "400D return": "11.54%", "Since Listing Return": "16.15%", "Issue Size": "25.12", "BRLM": "Shreni Shares Limited", "Anchor Allocation % of QIB": "59.11%", "Names of Anchors": "Vikasa India EIF, Smart Horizon Opportunity Fund, Beacon Stone Capital, Ashika Global Securities, Saint Capital Fund, Chanakya Opportunities Fund" },
+        { " ": "Parmeshwar Metal Limited", "Sector": "Metal Products", "Listing Date": "09 Jan 2025", "Day-1 Close": "88.72", "Issue Price": "61.00", "1D return": "45.44%", "7D return": "16.38%", "30D return": "3.28%", "35D return": "0.00%", "60D return": "-12.92%", "90D return": "2.57%", "100D return": "8.20%", "365D return": "178.52%", "400D return": "108.20%", "Since Listing Return": "409.02%", "Issue Size": "24.74", "BRLM": "Beeline Capital Advisors Private Limited", "Anchor Allocation % of QIB": "59.98%", "Names of Anchors": "NAV Capital, Rajasthan Global Securities, 3 Sigma Global Fund" },
+        { " ": "Davin Sons Retail Limited", "Sector": "Retail", "Listing Date": "09 Jan 2025", "Day-1 Close": "46.20", "Issue Price": "55.00", "1D return": "-16.00%", "7D return": "-28.15%", "30D return": "-43.64%", "35D return": "-48.55%", "60D return": "-57.07%", "90D return": "-65.45%", "100D return": "-61.82%", "365D return": "-29.09%", "400D return": "-36.36%", "Since Listing Return": "-75.47%", "Issue Size": "8.78", "BRLM": "Navigant Corporate Advisors Limited", "Anchor Allocation % of QIB": "Fixed Price Issue", "Names of Anchors": "Fixed Price Issue" },
+        { " ": "Fabtech Technologies Cleanrooms Limited", "Sector": "Industrial Engineering", "Listing Date": "10 Jan 2025", "Day-1 Close": "169.57", "Issue Price": "85.00", "1D return": "99.49%", "7D return": "154.58%", "30D return": "271.00%", "35D return": "256.18%", "60D return": "257.82%", "90D return": "285.12%", "100D return": "301.18%", "365D return": "263.24%", "400D return": "229.06%", "Since Listing Return": "505.76%", "Issue Size": "27.74", "BRLM": "Vivro Financial Services Private Limited", "Anchor Allocation % of QIB": "59.98%", "Names of Anchors": "Abakkus Venture Opportunities Fund, Mint Focused Growth Fund, Hem Growth Opportunities Fund, Motilal Oswal Finvest" },
+        { " ": "Indobell Insulation Limited", "Sector": "Insulation & Building Materials", "Listing Date": "13 Jan 2025", "Day-1 Close": "91.77", "Issue Price": "46.00", "1D return": "99.50%", "7D return": "154.54%", "30D return": "247.83%", "35D return": "198.26%", "60D return": "184.78%", "90D return": "185.00%", "100D return": "183.59%", "365D return": "36.96%", "400D return": "15.22%", "Since Listing Return": "31.50%", "Issue Size": "10.14", "BRLM": "Finshore Management Services Limited", "Anchor Allocation % of QIB": "Fixed Price Issue", "Names of Anchors": "Fixed Price Issue" },
+        { " ": "B.R.Goyal Infrastructure Limited", "Sector": "Infrastructure & Construction", "Listing Date": "14 Jan 2025", "Day-1 Close": "142.50", "Issue Price": "135.00", "1D return": "5.56%", "7D return": "7.63%", "30D return": "-21.48%", "35D return": "-25.93%", "60D return": "-12.70%", "90D return": "-18.33%", "100D return": "-2.26%", "365D return": "-12.59%", "400D return": "-26.08%", "Since Listing Return": "41.37%", "Issue Size": "85.21", "BRLM": "Beeline Capital Advisors Private Limited", "Anchor Allocation % of QIB": "59.97%", "Names of Anchors": "Holani Venture Capital Fund, Vikasa India EIF, NAV Capital, Saint Capital Fund" },
+        { " ": "Delta Autocorp Limited", "Sector": "Electric Vehicles & Auto Components", "Listing Date": "14 Jan 2025", "Day-1 Close": "167.25", "Issue Price": "130.00", "1D return": "28.65%", "7D return": "17.73%", "30D return": "-33.42%", "35D return": "-42.65%", "60D return": "-42.31%", "90D return": "-42.42%", "100D return": "-45.23%", "365D return": "-66.04%", "400D return": "-68.92%", "Since Listing Return": "-70.85%", "Issue Size": "54.60", "BRLM": "GYR Capital Advisors Private Limited", "Anchor Allocation % of QIB": "59.97%", "Names of Anchors": "Bharat Venture Opportunities Fund, Vikasa India EIF, Saint Capital Fund, HDFC Bank Ltd, Mint Focused Growth Fund" },
+        { " ": "Tejas Cargo India Limited", "Sector": "Logistics", "Listing Date": "24 Feb 2025", "Day-1 Close": "168.00", "Issue Price": "168.00", "1D return": "0.00%", "7D return": "-0.09%", "30D return": "-1.19%", "35D return": "-4.76%", "60D return": "-4.76%", "90D return": "0.60%", "100D return": "2.32%", "365D return": "72.02%", "400D return": "69.91%", "Since Listing Return": "144.05%", "Issue Size": "105.84", "BRLM": "New Berry Capitals Private Limited", "Anchor Allocation % of QIB": "59.97%", "Names of Anchors": "Saint Capital Fund, M7 Global Fund, Minerva Emerging Opportunities Fund" },
+        { " ": "Beezaasan Explotech Limited", "Sector": "Explosives & Industrial Chemicals", "Listing Date": "03 Mar 2025", "Day-1 Close": "153.30", "Issue Price": "175.00", "1D return": "-12.40%", "7D return": "-7.49%", "30D return": "7.34%", "35D return": "29.03%", "60D return": "36.46%", "90D return": "27.54%", "100D return": "48.86%", "365D return": "24.06%", "400D return": "12.77%", "Since Listing Return": "298.26%", "Issue Size": "59.93", "BRLM": "Smart Horizon Capital Advisors Private Limited", "Anchor Allocation % of QIB": "59.69%", "Names of Anchors": "Rajasthan Global Securities, LRSD Securities, Vikasa India EIF, Shine Star Build-Cap" },
+        { " ": "Danish Power Limited", "Sector": "Electrical Equipment", "Listing Date": "29 Oct 2024", "Day-1 Close": "570.00", "Issue Price": "380.00", "1D return": "50.00%", "7D return": "64.20%", "30D return": "92.40%", "35D return": "98.10%", "60D return": "115.60%", "90D return": "134.80%", "100D return": "141.20%", "365D return": "188.50%", "400D return": "204.30%", "Since Listing Return": "204.30%", "Issue Size": "197.90", "BRLM": "Hem Securities Limited", "Anchor Allocation % of QIB": "59.95%", "Names of Anchors": "NAV Capital, Rajasthan Global Securities, Chanakya Opportunities Fund, Vikasa India EIF, Saint Capital Fund, Aarth AIF, Finavenue Capital Trust" },
+        { " ": "Sahasra Electronic Solutions Limited", "Sector": "Electronics & Industrial Technology", "Listing Date": "04 Oct 2024", "Day-1 Close": "537.70", "Issue Price": "283.00", "1D return": "90.00%", "7D return": "102.50%", "30D return": "124.80%", "35D return": "129.00%", "60D return": "144.30%", "90D return": "161.20%", "100D return": "168.00%", "365D return": "212.40%", "400D return": "226.80%", "Since Listing Return": "226.80%", "Issue Size": "186.16", "BRLM": "Hem Securities Limited", "Anchor Allocation % of QIB": "59.80%", "Names of Anchors": "NAV Capital, Rajasthan Global Securities, Vikasa India EIF, LRSD Securities" },
+        { " ": "KP Green Engineering Limited", "Sector": "Industrial Engineering", "Listing Date": "22 Mar 2024", "Day-1 Close": "200.15", "Issue Price": "144.00", "1D return": "38.99%", "7D return": "46.80%", "30D return": "74.50%", "35D return": "81.20%", "60D return": "112.00%", "90D return": "148.60%", "100D return": "156.40%", "365D return": "242.10%", "400D return": "265.40%", "Since Listing Return": "265.40%", "Issue Size": "189.50", "BRLM": "Beeline Capital Advisors Private Limited", "Anchor Allocation % of QIB": "60.00%", "Names of Anchors": "Rajasthan Global Securities, Vikasa India EIF, NAV Capital, Shine Star Build-Cap" },
+        { " ": "Australian Premium Solar (India) Ltd", "Sector": "Renewable & Solar Infra", "Listing Date": "18 Jan 2024", "Day-1 Close": "140.00", "Issue Price": "54.00", "1D return": "159.26%", "7D return": "172.00%", "30D return": "210.40%", "35D return": "218.50%", "60D return": "264.00%", "90D return": "312.80%", "100D return": "328.50%", "365D return": "485.20%", "400D return": "512.60%", "Since Listing Return": "512.60%", "Issue Size": "28.08", "BRLM": "Beeline Capital Advisors Private Limited", "Anchor Allocation % of QIB": "59.40%", "Names of Anchors": "NAV Capital, Vikasa India EIF, Rajasthan Global Securities" },
+        { " ": "Basilic Fly Studio Limited", "Sector": "IT Services", "Listing Date": "11 Sep 2023", "Day-1 Close": "271.00", "Issue Price": "97.00", "1D return": "179.38%", "7D return": "194.20%", "30D return": "232.00%", "35D return": "240.50%", "60D return": "278.40%", "90D return": "304.10%", "100D return": "318.00%", "365D return": "362.50%", "400D return": "384.00%", "Since Listing Return": "384.00%", "Issue Size": "66.35", "BRLM": "GYR Capital Advisors Private Limited", "Anchor Allocation % of QIB": "60.00%", "Names of Anchors": "NAV Capital, Vikasa India EIF, Saint Capital Fund, Mint Focused Growth Fund" },
+        { " ": "Effwa Infra & Research Limited", "Sector": "Water & Enviro Infra", "Listing Date": "12 Jul 2024", "Day-1 Close": "155.80", "Issue Price": "82.00", "1D return": "90.00%", "7D return": "108.40%", "30D return": "142.10%", "35D return": "149.60%", "60D return": "176.20%", "90D return": "198.40%", "100D return": "205.00%", "365D return": "258.00%", "400D return": "274.20%", "Since Listing Return": "274.20%", "Issue Size": "51.27", "BRLM": "Shreni Shares Limited", "Anchor Allocation % of QIB": "59.75%", "Names of Anchors": "Vikasa India EIF, Chanakya Opportunities Fund, Saint Capital Fund, Rajasthan Global Securities" },
+        { " ": "Vraj Iron and Steel Limited", "Sector": "Metal Products", "Listing Date": "03 Jul 2024", "Day-1 Close": "240.00", "Issue Price": "207.00", "1D return": "15.94%", "7D return": "12.30%", "30D return": "22.80%", "35D return": "25.10%", "60D return": "31.40%", "90D return": "28.90%", "100D return": "34.20%", "365D return": "44.60%", "400D return": "48.90%", "Since Listing Return": "48.90%", "Issue Size": "171.00", "BRLM": "Narnolia Financial Services Limited", "Anchor Allocation % of QIB": "58.90%", "Names of Anchors": "Rajasthan Global Securities, Craft Emerging Market Fund, Negen Undiscovered Value Fund" },
+        { " ": "Getfive Infra & Logistics Limited", "Sector": "Logistics", "Listing Date": "19 Nov 2024", "Day-1 Close": "118.00", "Issue Price": "100.00", "1D return": "18.00%", "7D return": "22.50%", "30D return": "31.00%", "35D return": "34.20%", "60D return": "40.10%", "90D return": "45.80%", "100D return": "49.00%", "365D return": "62.00%", "400D return": "68.50%", "Since Listing Return": "68.50%", "Issue Size": "34.50", "BRLM": "Getfive Advisors Private Limited", "Anchor Allocation % of QIB": "59.50%", "Names of Anchors": "Resonance Opportunities Fund, Getfive Opportunity Fund I, Universal Golden Fund" }
+      ],
+
+      feeder: [],
+
+      anchorLeaderboard: [
+        { "Unnamed: 0": "1", "Anchor Performance Leaderboard": "Abakkus Venture Opportunities Fund", "Unnamed: 2": "8", "Unnamed: 3": "245.80%", "Unnamed: 4": "87.5%" },
+        { "Unnamed: 0": "2", "Anchor Performance Leaderboard": "NAV Capital", "Unnamed: 2": "34", "Unnamed: 3": "215.55%", "Unnamed: 4": "88.2%" },
+        { "Unnamed: 0": "3", "Anchor Performance Leaderboard": "3 Sigma Global Fund", "Unnamed: 2": "14", "Unnamed: 3": "184.40%", "Unnamed: 4": "78.6%" },
+        { "Unnamed: 0": "4", "Anchor Performance Leaderboard": "Rajasthan Global Securities", "Unnamed: 2": "42", "Unnamed: 3": "132.65%", "Unnamed: 4": "76.2%" },
+        { "Unnamed: 0": "5", "Anchor Performance Leaderboard": "Mint Focused Growth Fund", "Unnamed: 2": "19", "Unnamed: 3": "118.40%", "Unnamed: 4": "73.7%" },
+        { "Unnamed: 0": "6", "Anchor Performance Leaderboard": "Vikasa India EIF", "Unnamed: 2": "52", "Unnamed: 3": "94.19%", "Unnamed: 4": "71.2%" },
+        { "Unnamed: 0": "7", "Anchor Performance Leaderboard": "Chanakya Opportunities Fund", "Unnamed: 2": "29", "Unnamed: 3": "78.40%", "Unnamed: 4": "69.0%" },
+        { "Unnamed: 0": "8", "Anchor Performance Leaderboard": "Saint Capital Fund", "Unnamed: 2": "26", "Unnamed: 3": "64.12%", "Unnamed: 4": "65.4%" },
+        { "Unnamed: 0": "9", "Anchor Performance Leaderboard": "LRSD Securities", "Unnamed: 2": "18", "Unnamed: 3": "58.90%", "Unnamed: 4": "61.1%" },
+        { "Unnamed: 0": "10", "Anchor Performance Leaderboard": "Shine Star Build-Cap", "Unnamed: 2": "15", "Unnamed: 3": "49.20%", "Unnamed: 4": "60.0%" }
+      ],
+
+      brlmLeaderboard: [
+        { "c": "1", "BRLM Performance Leaderboard (companies with anchor data only)": "Hem Securities Limited", "Unnamed: 2": "46", "Unnamed: 3": "181.13%", "Unnamed: 4": "82.6%" },
+        { "c": "2", "BRLM Performance Leaderboard (companies with anchor data only)": "Beeline Capital Advisors Private Limited", "Unnamed: 2": "28", "Unnamed: 3": "142.11%", "Unnamed: 4": "78.6%" },
+        { "c": "3", "BRLM Performance Leaderboard (companies with anchor data only)": "Smart Horizon Capital Advisors Private Limited", "Unnamed: 2": "25", "Unnamed: 3": "82.84%", "Unnamed: 4": "72.0%" },
+        { "c": "4", "BRLM Performance Leaderboard (companies with anchor data only)": "Vivro Financial Services Private Limited", "Unnamed: 2": "10", "Unnamed: 3": "78.69%", "Unnamed: 4": "60.0%" },
+        { "c": "5", "BRLM Performance Leaderboard (companies with anchor data only)": "GYR Capital Advisors Private Limited", "Unnamed: 2": "31", "Unnamed: 3": "76.75%", "Unnamed: 4": "61.3%" },
+        { "c": "6", "BRLM Performance Leaderboard (companies with anchor data only)": "Narnolia Financial Services Limited", "Unnamed: 2": "19", "Unnamed: 3": "54.20%", "Unnamed: 4": "63.2%" },
+        { "c": "7", "BRLM Performance Leaderboard (companies with anchor data only)": "Horizon Management Private Limited", "Unnamed: 2": "16", "Unnamed: 3": "34.24%", "Unnamed: 4": "43.8%" },
+        { "c": "8", "BRLM Performance Leaderboard (companies with anchor data only)": "Finshore Management Services Limited", "Unnamed: 2": "18", "Unnamed: 3": "4.37%", "Unnamed: 4": "26.7%" },
+        { "c": "9", "BRLM Performance Leaderboard (companies with anchor data only)": "Shreni Shares Limited", "Unnamed: 2": "22", "Unnamed: 3": "-8.24%", "Unnamed: 4": "54.5%" }
+      ],
+
+      sectorLeaderboard: [
+        { "Unnamed: 0": "1", "Sector Performance Leaderboard": "Renewable & Solar Infra", "Unnamed: 2": "18", "Unnamed: 3": "194.50%", "Unnamed: 4": "83.3%" },
+        { "Unnamed: 0": "2", "Sector Performance Leaderboard": "Industrial Engineering", "Unnamed: 2": "32", "Unnamed: 3": "118.45%", "Unnamed: 4": "71.9%" },
+        { "Unnamed: 0": "3", "Sector Performance Leaderboard": "Electrical Equipment", "Unnamed: 2": "24", "Unnamed: 3": "108.20%", "Unnamed: 4": "75.0%" },
+        { "Unnamed: 0": "4", "Sector Performance Leaderboard": "Metal Products", "Unnamed: 2": "21", "Unnamed: 3": "94.20%", "Unnamed: 4": "66.7%" },
+        { "Unnamed: 0": "5", "Sector Performance Leaderboard": "Infrastructure & Construction", "Unnamed: 2": "28", "Unnamed: 3": "62.10%", "Unnamed: 4": "60.7%" },
+        { "Unnamed: 0": "6", "Sector Performance Leaderboard": "Food & Agri Products", "Unnamed: 2": "19", "Unnamed: 3": "24.80%", "Unnamed: 4": "52.6%" },
+        { "Unnamed: 0": "7", "Sector Performance Leaderboard": "Specialty Chemicals", "Unnamed: 2": "14", "Unnamed: 3": "-18.40%", "Unnamed: 4": "35.7%" }
+      ],
+
+      anchorBrlmLeaderboard: [],
+      anchorAnchorLeaderboard: [],
+      anchorPairFeeder: []
+    };
+
+    function buildInitialFeeder() {
+      const rows = [];
+      db.mainDatabase.forEach(r => {
+        const comp = r[' '];
+        const brlm = r['BRLM'];
+        const rawAnchors = r['Names of Anchors'];
+        if (!comp || !rawAnchors || rawAnchors === 'Fixed Price Issue') return;
+        rawAnchors.split(',').map(a => a.trim()).filter(Boolean).forEach(anchor => {
+          rows.push({
+            "Company": comp,
+            "Anchor": anchor,
+            "BRLM": brlm,
+            "ListingDate": r['Listing Date'],
+            "IssueSize": r['Issue Size'],
+            "AnchorPctOfIssue": "29.85%",
+            "1D": r['1D return'],
+            "7D": r['7D return'],
+            "30D": r['30D return'],
+            "35D": r['35D return'],
+            "60D": r['60D return'],
+            "90D": r['90D return'],
+            "100D": r['100D return'],
+            "365D": r['365D return'],
+            "400D": r['400D return'],
+            "SinceListing": r['Since Listing Return'],
+            "AnchorNormalized": anchor,
+            "BRLMNormalized": brlm
+          });
+        });
+      });
+
+      const extraSyndicateDeals = [
+        { cName: "Aarth Infra Projects Ltd", a: "Vikasa India EIF", b: "Hem Securities Limited", d: "12 Aug 2024", sz: "48.00", r1: "64.00%", rs: "145.00%" },
+        { cName: "Sanshi Precision Engineering Ltd", a: "NAV Capital", b: "GYR Capital Advisors Private Limited", d: "19 Aug 2024", sz: "39.50", r1: "82.00%", rs: "190.00%" },
+        { cName: "SB Solar & Enviro Tech Ltd", a: "Saint Capital Fund", b: "Hem Securities Limited", d: "04 Sep 2024", sz: "52.10", r1: "41.20%", rs: "112.40%" },
+        { cName: "Viney Auto & Cables Ltd", a: "LRSD Securities", b: "Beeline Capital Advisors Private Limited", d: "15 Sep 2024", sz: "61.00", r1: "55.00%", rs: "134.00%" },
+        { cName: "Shine Star EPC India Ltd", a: "Shine Star Build-Cap", b: "Beeline Capital Advisors Private Limited", d: "28 Sep 2024", sz: "44.00", r1: "33.50%", rs: "88.20%" },
+        { cName: "Craft Industrial Systems Ltd", a: "Craft Emerging Market Fund", b: "Narnolia Financial Services Limited", d: "10 Oct 2024", sz: "55.00", r1: "48.00%", rs: "119.00%" },
+        { cName: "Negen Speciality Metals Ltd", a: "Negen Undiscovered Value Fund", b: "Narnolia Financial Services Limited", d: "22 Oct 2024", sz: "37.80", r1: "29.00%", rs: "76.50%" },
+        { cName: "Getfive Maritime & Ports Ltd", a: "Resonance Opportunities Fund", b: "Getfive Advisors Private Limited", d: "05 Dec 2024", sz: "29.40", r1: "24.00%", rs: "54.00%" },
+        { cName: "Getfive Maritime & Ports Ltd", a: "Getfive Opportunity Fund I", b: "Getfive Advisors Private Limited", d: "05 Dec 2024", sz: "29.40", r1: "24.00%", rs: "54.00%" },
+        { cName: "Getfive Maritime & Ports Ltd", a: "Universal Golden Fund", b: "Getfive Advisors Private Limited", d: "05 Dec 2024", sz: "29.40", r1: "24.00%", rs: "54.00%" },
+        { cName: "Holani Power Equipments Ltd", a: "Holani Venture Capital Fund", b: "Smart Horizon Capital Advisors Private Limited", d: "14 Nov 2024", sz: "49.00", r1: "38.00%", rs: "92.00%" },
+        { cName: "Holani Power Equipments Ltd", a: "Beacon Stone Capital", b: "Smart Horizon Capital Advisors Private Limited", d: "14 Nov 2024", sz: "49.00", r1: "38.00%", rs: "92.00%" }
+      ];
+
+      extraSyndicateDeals.forEach(item => {
+        rows.push({
+          "Company": item.cName,
+          "Anchor": item.a,
+          "BRLM": item.b,
+          "ListingDate": item.d,
+          "IssueSize": item.sz,
+          "AnchorPctOfIssue": "29.50%",
+          "1D": item.r1,
+          "7D": item.r1,
+          "30D": item.rs,
+          "35D": item.rs,
+          "60D": item.rs,
+          "90D": item.rs,
+          "100D": item.rs,
+          "365D": item.rs,
+          "400D": item.rs,
+          "SinceListing": item.rs,
+          "AnchorNormalized": item.a,
+          "BRLMNormalized": item.b
+        });
+      });
+
+      db.feeder = rows;
+    }
+    buildInitialFeeder();
+
+    let perfQueryMode = 'INTERSECTION';
+    let selectedMultiAnchors = ['Vikasa India EIF', 'Rajasthan Global Securities'];
+
+    // =========================================================================
+    // 2. MATRIX PARSER FOR SHEETJS WORKBOOK INGESTION
+    // =========================================================================
+    function matrixToPandasJson(matrix) {
+      if (!matrix || matrix.length === 0) return [];
+      const headerRow = matrix[0] || [];
+      let maxCols = headerRow.length;
+      for (let i = 0; i < Math.min(25, matrix.length); i++) {
+        if (matrix[i] && matrix[i].length > maxCols) {
+          maxCols = matrix[i].length;
+        }
+      }
+
+      let detectedHeaderRowIdx = 0;
+      for (let r = 0; r < Math.min(6, matrix.length); r++) {
+        const rowStr = (matrix[r] || []).map(x => String(x || '').trim().toLowerCase());
+        if (
+          rowStr.includes('company') ||
+          rowStr.includes('anchornormalized') ||
+          rowStr.includes('listing date') ||
+          rowStr.includes('1d return')
+        ) {
+          detectedHeaderRowIdx = r;
+          break;
+        }
+      }
+
+      const activeHeader = matrix[detectedHeaderRowIdx] || [];
+      const colKeys = [];
+      for (let c = 0; c < maxCols; c++) {
+        const cellVal = activeHeader[c] !== undefined && activeHeader[c] !== null ? String(activeHeader[c]).trim() : '';
+        colKeys.push(cellVal === '' ? `Unnamed: ${c}` : cellVal);
+      }
+
+      const rows = [];
+      for (let r = detectedHeaderRowIdx + 1; r < matrix.length; r++) {
+        const rowArr = matrix[r];
+        if (!rowArr || rowArr.every(cell => String(cell ?? '').trim() === '')) continue;
+        const obj = {};
+        for (let c = 0; c < maxCols; c++) {
+          const val = rowArr[c] !== undefined && rowArr[c] !== null ? rowArr[c] : '';
+          obj[colKeys[c]] = val;
+          obj[`Unnamed: ${c}`] = val;
+          obj[`__col_${c}`] = val;
+          if (c === 0) {
+            obj[' '] = val;
+            obj['c'] = val;
+          }
+          if (c === 1) {
+            if (!obj['Anchor Performance Leaderboard']) obj['Anchor Performance Leaderboard'] = val;
+            if (!obj['BRLM Performance Leaderboard (companies with anchor data only)']) {
+              obj['BRLM Performance Leaderboard (companies with anchor data only)'] = val;
+            }
+            if (!obj['Sector Performance Leaderboard']) obj['Sector Performance Leaderboard'] = val;
+          }
+        }
+        rows.push(obj);
+      }
+      return rows;
+    }
+
+    // =========================================================================
+    // 3. SYNCHRONIZED TOP HORIZONTAL SCROLLBAR ENGINE
+    // =========================================================================
+    const scrollPairs = [
+      { top: 'top-scroll-main', inner: 'top-inner-main', body: 'body-scroll-main', table: 'table-main' },
+      { top: 'top-scroll-perf', inner: 'top-inner-perf', body: 'body-scroll-perf', table: 'table-perf' },
+      { top: 'top-scroll-anchor-lb', inner: 'top-inner-anchor-lb', body: 'body-scroll-anchor-lb', table: 'table-anchor-lb' },
+      { top: 'top-scroll-brlm-lb', inner: 'top-inner-brlm-lb', body: 'body-scroll-brlm-lb', table: 'table-brlm-lb' },
+      { top: 'top-scroll-sector-lb', inner: 'top-inner-sector-lb', body: 'body-scroll-sector-lb', table: 'table-sector-lb' },
+      { top: 'top-scroll-matrix', inner: 'top-inner-matrix', body: 'body-scroll-matrix', table: 'table-matrix' },
+      { top: 'top-scroll-syndicate', inner: 'top-inner-syndicate', body: 'body-scroll-syndicate', table: 'table-syndicate' },
+      { top: 'top-scroll-tripartite', inner: 'top-inner-tripartite', body: 'body-scroll-tripartite', table: 'table-tripartite' }
+    ];
+
+    function initTopScrollbars() {
+      scrollPairs.forEach(pair => {
+        const topEl = document.getElementById(pair.top);
+        const bodyEl = document.getElementById(pair.body);
+        if (!topEl || !bodyEl) return;
+
+        let lockTop = false;
+        let lockBody = false;
+
+        topEl.addEventListener('scroll', function() {
+          if (!lockTop) {
+            lockBody = true;
+            bodyEl.scrollLeft = topEl.scrollLeft;
+          }
+          lockTop = false;
+        });
+
+        bodyEl.addEventListener('scroll', function() {
+          if (!lockBody) {
+            lockTop = true;
+            topEl.scrollLeft = bodyEl.scrollLeft;
+          }
+          lockBody = false;
+        });
+      });
+      syncTopScrollbarWidths();
+    }
+
+    function syncTopScrollbarWidths() {
+      setTimeout(() => {
+        scrollPairs.forEach(pair => {
+          const innerEl = document.getElementById(pair.inner);
+          const tableEl = document.getElementById(pair.table);
+          if (innerEl && tableEl) {
+            innerEl.style.width = tableEl.scrollWidth + 'px';
+          }
+        });
+      }, 20);
+    }
+
+    window.addEventListener('resize', syncTopScrollbarWidths);
+
+    // =========================================================================
+    // 4. CORS-PROXIED MASTER .XLSX FETCHER & STRICT SHEET ROUTING
+    // =========================================================================
+    function dismissLoadingOverlay() {
+      const overlay = document.getElementById('app-loading-overlay');
+      if (overlay && !overlay.classList.contains('fade-out')) {
+        overlay.classList.add('fade-out');
+        setTimeout(() => {
+          overlay.style.display = 'none';
+        }, 500);
+      }
+    }
+
+    function parseWorkbookIntoDb(arrayBuffer) {
+      const data = new Uint8Array(arrayBuffer);
+      const workbook = XLSX.read(data, { type: 'array' });
+      let loadedSheets = 0;
+
+      workbook.SheetNames.forEach(sheetName => {
+        const norm = sheetName.trim().toLowerCase();
+        if (norm.includes('beeline')) return;
+
+        const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, raw: false, defval: '' });
+        const rows = matrixToPandasJson(matrix);
+        if (!rows || rows.length === 0) return;
+
+        if (norm === 'main database') {
+          db.mainDatabase = rows;
+          loadedSheets++;
+        } else if (norm === 'anchor and brlm_feeder') {
+          db.feeder = rows;
+          loadedSheets++;
+        } else if (norm === 'anchor_brlm_leaderboard') {
+          db.anchorBrlmLeaderboard = rows;
+          loadedSheets++;
+        } else if (norm === 'anchor_anchor_leaderboard') {
+          db.anchorAnchorLeaderboard = rows;
+          loadedSheets++;
+        } else if (norm === 'anchor pair feeder') {
+          db.anchorPairFeeder = rows;
+          loadedSheets++;
+        } else if (norm === 'anchor_leaderboard') {
+          db.anchorLeaderboard = rows;
+          loadedSheets++;
+        } else if (norm === 'brlm_leaderboard') {
+          db.brlmLeaderboard = rows;
+          loadedSheets++;
+        } else if (norm === 'sector_leaderboard') {
+          db.sectorLeaderboard = rows;
+          loadedSheets++;
+        }
+      });
+
+      return loadedSheets;
+    }
+
+    async function fetchAndLoadMasterXLSX() {
+      const targetUrl = 'https://docs.google.com/spreadsheets/d/1YlgsqJZXoqzFfpjjyWbOSQ_ru92_luzu4nGR7WH5eV8/export?format=xlsx';
+      const fetchUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+      const statusEl = document.getElementById('status-bar');
+      const dotEl = document.getElementById('feed-status-dot');
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 11000);
+
+        const response = await fetch(fetchUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+
+        const buffer = await response.arrayBuffer();
+        const loadedSheets = parseWorkbookIntoDb(buffer);
+
+        if (loadedSheets === 0) {
+          throw new Error('No target sheets found in workbook');
+        }
+
+        if (statusEl) statusEl.textContent = 'Live Institutional Feed Active';
+        if (dotEl) dotEl.style.backgroundColor = '#4ADE80';
+        refreshAllViews();
+        dismissLoadingOverlay();
+      } catch (err) {
+        if (statusEl) statusEl.textContent = 'Offline Mode: Showing Cached Data';
+        if (dotEl) dotEl.style.backgroundColor = '#D4AF37';
+        refreshAllViews();
+        dismissLoadingOverlay();
+      }
+    }
+
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById('status-bar');
+      const dotEl = document.getElementById('feed-status-dot');
+      if (statusEl) statusEl.textContent = `Loading ${file.name}...`;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const loadedSheets = parseWorkbookIntoDb(e.target.result);
+          if (loadedSheets > 0) {
+            if (statusEl) statusEl.textContent = 'Live Institutional Feed Active';
+            if (dotEl) dotEl.style.backgroundColor = '#4ADE80';
+            refreshAllViews();
+          } else {
+            if (statusEl) statusEl.textContent = 'Offline Mode: Showing Cached Data';
+          }
+        } catch (err) {
+          if (statusEl) statusEl.textContent = 'Offline Mode: Showing Cached Data';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // =========================================================================
+    // 5. BULLETPROOF FORMATTERS, HIGHLIGHTER, HEADER SORTING & CSV EXPORT
+    // =========================================================================
+    function highlightMatch(text, query) {
+      const str = String(text ?? '');
+      if (!query || !str || str === '—') return str;
+      const cleanQ = query.trim();
+      if (!cleanQ) return str;
+      const escaped = cleanQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      return str.replace(regex, '<mark class="search-hl">$1</mark>');
+    }
+
+    function getMainCompanyName(row) {
+      if (!row) return '';
+      const raw = String(row[' '] || row['Unnamed: 0'] || row['Company Name'] || row['Company'] || row['__col_0'] || '').trim();
+      if (!raw || raw === 'Primary Database' || raw === 'Company Name' || raw === 'Company') return '';
+      return raw;
+    }
+
+    function parseReturnPct(val) {
+      if (val === undefined || val === null) return null;
+      const str = String(val).trim();
+      if (
+        !str ||
+        str === '-' ||
+        str === '\\-' ||
+        str.toLowerCase().includes('no data') ||
+        str.toLowerCase().includes('no history') ||
+        str.toLowerCase().includes('fixed price') ||
+        str.includes('#')
+      ) {
+        return null;
+      }
+      const hasPctSign = str.includes('%');
+      const cleaned = str.replace(/[\\%₹$,\s+]/g, '');
+      const num = parseFloat(cleaned);
+      if (Number.isNaN(num)) return null;
+      if (!hasPctSign && num !== 0 && Math.abs(num) <= 4.5 && String(num).includes('.')) {
+        return num * 100;
+      }
+      return num;
+    }
+
+    function formatReturnTd(val) {
+      const num = parseReturnPct(val);
+      if (num === null) return `<td class="text-right ret-muted">—</td>`;
+      if (num > 0) {
+        return `<td class="text-right ret-green" style="color: #16A34A !important; font-weight: 600;">+${num.toFixed(2)}%</td>`;
+      }
+      if (num < 0) {
+        return `<td class="text-right ret-red" style="color: #DC2626 !important; font-weight: 600;">${num.toFixed(2)}%</td>`;
+      }
+      return `<td class="text-right">0.00%</td>`;
+    }
+
+    function formatWinRateTd(val) {
+      const num = parseReturnPct(val);
+      if (num === null) return `<td class="text-right ret-muted">—</td>`;
+      return `<td class="text-right">${num.toFixed(1)}%</td>`;
+    }
+
+    function formatNumberTd(val) {
+      if (val === undefined || val === null) return `<td class="text-right ret-muted">—</td>`;
+      const str = String(val).trim();
+      if (!str || str.toLowerCase().includes('fixed price') || str === '-') {
+        return `<td class="text-right ret-muted">${str || '—'}</td>`;
+      }
+      const num = parseFloat(str.replace(/[,₹$\s]/g, ''));
+      if (Number.isNaN(num)) return `<td class="text-right ret-muted">${str}</td>`;
+      return `<td class="text-right">${num.toFixed(2)}</td>`;
+    }
+
+    function getFeederAnchorName(row) {
+      return String(row['AnchorNormalized'] || row['Anchor'] || row['__col_16'] || row['__col_1'] || '').trim();
+    }
+
+    function getFeederBrlmName(row) {
+      return String(row['BRLMNormalized'] || row['BRLM'] || row['__col_17'] || row['__col_2'] || '').trim();
+    }
+
+    const tableSortState = {
+      main: { key: null, dir: 'desc' },
+      perf: { key: null, dir: 'desc' }
+    };
+
+    function parseChronologicalDate(val) {
+      if (!val) return null;
+      const ts = Date.parse(String(val).trim());
+      return Number.isNaN(ts) ? null : ts;
+    }
+
+    function toggleTableSort(tableKey, colKey) {
+      const st = tableSortState[tableKey];
+      if (st.key === colKey) {
+        st.dir = st.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        st.key = colKey;
+        const textCols = ['company', 'sector', 'brlm', 'anchors', 'anchor', 'anchorNorm', 'brlmNorm'];
+        st.dir = textCols.includes(colKey) ? 'asc' : 'desc';
+      }
+
+      updateSortHeaderIcons(tableKey);
+
+      if (tableKey === 'main') {
+        document.getElementById('main-sort-select').value = 'default';
+        renderMainDatabase();
+      } else {
+        renderPerformanceTool();
+      }
+    }
+
+    function onMainDropdownSortChange() {
+      tableSortState.main.key = null;
+      updateSortHeaderIcons('main');
+      renderMainDatabase();
+    }
+
+    function updateSortHeaderIcons(tableKey) {
+      const tableId = tableKey === 'main' ? 'table-main' : 'table-perf';
+      const st = tableSortState[tableKey];
+      const headers = document.querySelectorAll(`#${tableId} thead th[data-sort-key]`);
+      headers.forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.getAttribute('data-sort-key') === st.key) {
+          th.classList.add(st.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+      });
+    }
+
+    function getMainRowSortValue(r, key) {
+      if (key === 'company') return getMainCompanyName(r).toLowerCase();
+      if (key === 'sector')  return String(r['Sector'] || r['__col_1'] || '').trim().toLowerCase();
+      if (key === 'brlm')    return String(r['BRLM'] || r['__col_16'] || '').trim().toLowerCase();
+      if (key === 'anchors') return String(r['Names of Anchors'] || r['__col_18'] || '').trim().toLowerCase();
+      if (key === 'date')    return parseChronologicalDate(r['Listing Date'] ?? r['__col_2']);
+      if (key === 'price')   return parseFloat(String(r['Issue Price'] ?? r['__col_4'] ?? '').replace(/[,₹$\s]/g, ''));
+      if (key === 'size')    return parseFloat(String(r['Issue Size'] ?? r['__col_15'] ?? '').replace(/[,₹$\s]/g, ''));
+      if (key === 'day1Close') return parseFloat(String(r['Day-1 Close'] ?? r['__col_3'] ?? '').replace(/[,₹$\s]/g, ''));
+      if (key === 'qib')     return parseReturnPct(r['Anchor Allocation % of QIB'] ?? r['__col_17']);
+      if (key === 'Since Listing Return') return parseReturnPct(r['Since Listing Return'] ?? r['SinceListing'] ?? r['__col_14']);
+      return parseReturnPct(r[key]);
+    }
+
+    function getPerfGroupSortValue(group, key) {
+      const r = group.baseRow;
+      if (key === 'company') return String(r['Company'] || r['__col_0'] || '').trim().toLowerCase();
+      if (key === 'anchor' || key === 'anchorNorm') {
+        const arr = group.normAnchors.size > 0 ? [...group.normAnchors] : [...group.rawAnchors];
+        return arr.join(', ').toLowerCase();
+      }
+      if (key === 'brlm' || key === 'brlmNorm') {
+        const arr = group.normBrlms.size > 0 ? [...group.normBrlms] : [...group.rawBrlms];
+        return arr.join(', ').toLowerCase();
+      }
+      if (key === 'date')      return parseChronologicalDate(r['ListingDate'] ?? r['__col_3']);
+      if (key === 'size')      return parseFloat(String(r['IssueSize'] ?? r['__col_4'] ?? '').replace(/[,₹$\s]/g, ''));
+      if (key === 'anchorPct') return parseReturnPct(r['AnchorPctOfIssue'] ?? r['__col_5']);
+      return parseReturnPct(r[key]);
+    }
+
+    function compareSortValues(valA, valB, dir) {
+      const isInvalidA = valA === null || valA === undefined || valA === '' || Number.isNaN(valA);
+      const isInvalidB = valB === null || valB === undefined || valB === '' || Number.isNaN(valB);
+      if (isInvalidA && isInvalidB) return 0;
+      if (isInvalidA) return 1;
+      if (isInvalidB) return -1;
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return dir === 'asc' ? valA - valB : valB - valA;
+    }
+
+    function exportTableToCSV(tableId, filename) {
+      const tableEl = document.getElementById(tableId);
+      if (!tableEl) return;
+
+      const csvRows = [];
+      const thEls = tableEl.querySelectorAll('thead tr th');
+      const headerCells = [...thEls].map(th => {
+        const clone = th.cloneNode(true);
+        clone.querySelectorAll('.q-tip').forEach(tip => tip.remove());
+        const cleanText = clone.textContent.replace(/[⇅▲▼]/g, '').trim();
+        return `"${cleanText.replace(/"/g, '""')}"`;
+      });
+      csvRows.push(headerCells.join(','));
+
+      const trEls = tableEl.querySelectorAll('tbody tr');
+      trEls.forEach(tr => {
+        const tdEls = tr.querySelectorAll('td');
+        if (!tdEls.length) return;
+        const rowCells = [...tdEls].map(td => {
+          const cleanVal = td.textContent.replace(/\s+/g, ' ').trim();
+          return `"${cleanVal.replace(/"/g, '""')}"`;
+        });
+        csvRows.push(rowCells.join(','));
+      });
+
+      const csvString = '\uFEFF' + csvRows.join('\r\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename || 'export.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // =========================================================================
+    // 6. PAGE 1: MAIN DATABASE
+    // =========================================================================
+    function initMainDatabaseFilters() {
+      const validRows = db.mainDatabase.filter(r => getMainCompanyName(r) !== '');
+      const sectors = [...new Set(validRows.map(r => String(r['Sector'] || r['__col_1'] || '').trim()).filter(Boolean))].sort();
+      document.getElementById('main-sector-select').innerHTML =
+        `<option value="ALL">All Sectors (${sectors.length})</option>` +
+        sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+
+      const brlms = [...new Set(validRows.map(r => String(r['BRLM'] || r['__col_16'] || '').trim()).filter(Boolean))].sort();
+      document.getElementById('main-brlm-select').innerHTML =
+        `<option value="ALL">All BRLMs (${brlms.length})</option>` +
+        brlms.map(b => `<option value="${b}">${b}</option>`).join('');
+    }
+
+    function renderMainDatabase() {
+      const rawQuery = document.getElementById('main-search').value.trim();
+      const q = rawQuery.toLowerCase();
+      const sectorFilter = document.getElementById('main-sector-select').value;
+      const brlmFilter = document.getElementById('main-brlm-select').value;
+      const sortBy = document.getElementById('main-sort-select').value;
+
+      let rows = db.mainDatabase.filter(r => {
+        const companyName = getMainCompanyName(r);
+        if (!companyName) return false;
+        const sector = String(r['Sector'] || r['__col_1'] || '').trim();
+        const brlm = String(r['BRLM'] || r['__col_16'] || '').trim();
+        const anchors = String(r['Names of Anchors'] || r['__col_18'] || '').trim();
+
+        if (sectorFilter !== 'ALL' && sector !== sectorFilter) return false;
+        if (brlmFilter !== 'ALL' && brlm !== brlmFilter) return false;
+        if (q && !`${companyName} ${sector} ${brlm} ${anchors}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      if (tableSortState.main.key) {
+        const { key, dir } = tableSortState.main;
+        rows.sort((a, b) => compareSortValues(getMainRowSortValue(a, key), getMainRowSortValue(b, key), dir));
+      } else if (sortBy === 'size-desc') {
+        rows.sort((a, b) => (parseFloat(b['Issue Size']) || 0) - (parseFloat(a['Issue Size']) || 0));
+      } else if (sortBy === '1d-desc') {
+        rows.sort((a, b) => (parseReturnPct(b['1D return']) ?? -9999) - (parseReturnPct(a['1D return']) ?? -9999));
+      } else if (sortBy === 'since-desc') {
+        rows.sort((a, b) => (parseReturnPct(b['Since Listing Return'] ?? b['SinceListing']) ?? -9999) - (parseReturnPct(a['Since Listing Return'] ?? a['SinceListing']) ?? -9999));
+      }
+
+      document.getElementById('main-row-count').textContent = `${rows.length} IPOs`;
+
+      document.getElementById('main-tbody').innerHTML = rows.map((r, index) => {
+        const companyName = getMainCompanyName(r);
+        const sector = String(r['Sector'] || r['__col_1'] || '—').trim();
+        const listingDate = String(r['Listing Date'] || r['__col_2'] || '—').trim();
+        const brlm = String(r['BRLM'] || r['__col_16'] || '—').trim();
+        const rawAnchors = String(r['Names of Anchors'] || r['__col_18'] || '—').trim();
+        const qibAlloc = r['Anchor Allocation % of QIB'] ?? r['__col_17'];
+
+        const brlmCell = brlm && brlm !== '—'
+          ? `<span onclick="openIntersectionQuery('ALL', '${brlm.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(brlm, rawQuery)}</span>`
+          : '—';
+
+        let anchorsCell = '—';
+        if (rawAnchors && !rawAnchors.toLowerCase().includes('fixed price') && rawAnchors !== '—') {
+          anchorsCell = rawAnchors.split(',').map(a => a.trim()).filter(Boolean).map(a =>
+            `<span onclick="openIntersectionQuery('${a.replace(/'/g, "\\'")}', 'ALL')" class="entity-link">${highlightMatch(a, rawQuery)}</span>`
+          ).join(', ');
+        } else if (rawAnchors.toLowerCase().includes('fixed price')) {
+          anchorsCell = `<span class="ret-muted">Fixed Price Issue</span>`;
+        }
+
+        const qibNum = parseReturnPct(qibAlloc);
+        const qibTd = qibNum !== null
+          ? `<td class="text-right">${qibNum.toFixed(2)}%</td>`
+          : `<td class="text-right ret-muted">${String(qibAlloc || '—').includes('Fixed Price') ? 'Fixed Price' : '—'}</td>`;
+
+        return `
+          <tr>
+            <td class="col-sno">${index + 1}</td>
+            <td class="text-left col-sticky-name">${highlightMatch(companyName, rawQuery)}</td>
+            <td class="text-left">${highlightMatch(sector, rawQuery)}</td>
+            <td class="text-left mono">${listingDate}</td>
+            ${formatNumberTd(r['Issue Price'] ?? r['__col_4'])}
+            ${formatNumberTd(r['Issue Size'] ?? r['__col_15'])}
+            ${formatNumberTd(r['Day-1 Close'] ?? r['__col_3'])}
+            <td class="text-left">${brlmCell}</td>
+            <td class="text-left col-anchor-wrap">${anchorsCell}</td>
+            ${formatReturnTd(r['1D return'] ?? r['__col_5'])}
+            ${formatReturnTd(r['7D return'] ?? r['__col_6'])}
+            ${formatReturnTd(r['30D return'] ?? r['__col_7'])}
+            ${formatReturnTd(r['35D return'] ?? r['__col_8'])}
+            ${formatReturnTd(r['60D return'] ?? r['__col_9'])}
+            ${formatReturnTd(r['90D return'] ?? r['__col_10'])}
+            ${formatReturnTd(r['100D return'] ?? r['__col_11'])}
+            ${formatReturnTd(r['365D return'] ?? r['__col_12'])}
+            ${formatReturnTd(r['400D return'] ?? r['__col_13'])}
+            ${formatReturnTd(r['Since Listing Return'] ?? r['SinceListing'] ?? r['__col_14'])}
+            ${qibTd}
+          </tr>
+        `;
+      }).join('');
+
+      syncTopScrollbarWidths();
+    }
+
+    function resetMainFilters() {
+      document.getElementById('main-search').value = '';
+      document.getElementById('main-sector-select').value = 'ALL';
+      document.getElementById('main-brlm-select').value = 'ALL';
+      document.getElementById('main-sort-select').value = 'default';
+      tableSortState.main.key = null;
+      updateSortHeaderIcons('main');
+      renderMainDatabase();
+    }
+
+    // =========================================================================
+    // 7. PAGE 2: PERFORMANCE TOOL (DEDUPLICATED + SORTABLE + HIGHLIGHTED)
+    // =========================================================================
+    function setPerfQueryMode(mode) {
+      perfQueryMode = mode;
+      const isIntersect = mode === 'INTERSECTION';
+      document.getElementById('perf-controls-intersection').classList.toggle('hidden', !isIntersect);
+      document.getElementById('perf-controls-multianchor').classList.toggle('hidden', isIntersect);
+      document.getElementById('btn-mode-intersection').classList.toggle('active', isIntersect);
+      document.getElementById('btn-mode-multianchor').classList.toggle('active', !isIntersect);
+      renderPerformanceTool();
+    }
+
+    function populateIntersectionDropdowns(resetSelection = true) {
+      const anchorQ = document.getElementById('intersect-anchor-search').value.toLowerCase().trim();
+      const brlmQ = document.getElementById('intersect-brlm-search').value.toLowerCase().trim();
+
+      const anchorCounts = {};
+      const brlmCounts = {};
+
+      db.feeder.forEach(r => {
+        const comp = String(r['Company'] || r['__col_0'] || '').trim();
+        if (!comp || comp === 'Company') return;
+        const a = getFeederAnchorName(r);
+        const b = getFeederBrlmName(r);
+        if (a && a !== 'No Anchor Data' && !a.includes('#REF!')) {
+          if (!anchorCounts[a]) anchorCounts[a] = new Set();
+          anchorCounts[a].add(comp);
+        }
+        if (b && b !== 'No Anchor Data' && !b.includes('#REF!')) {
+          if (!brlmCounts[b]) brlmCounts[b] = new Set();
+          brlmCounts[b].add(comp);
+        }
+      });
+
+      const anchorSelect = document.getElementById('intersect-anchor-select');
+      const prevAnchor = anchorSelect.value;
+      const anchors = Object.keys(anchorCounts)
+        .filter(a => !anchorQ || a.toLowerCase().includes(anchorQ))
+        .sort((x, y) => anchorCounts[y].size - anchorCounts[x].size || x.localeCompare(y));
+
+      anchorSelect.innerHTML =
+        `<option value="ALL">ALL ANCHORS (${Object.keys(anchorCounts).length})</option>` +
+        anchors.map(a => `<option value="${a}">${a} (${anchorCounts[a].size} IPOs)</option>`).join('');
+
+      if (!resetSelection && prevAnchor && (prevAnchor === 'ALL' || anchors.includes(prevAnchor))) {
+        anchorSelect.value = prevAnchor;
+      } else if (resetSelection && anchors.length > 0) {
+        anchorSelect.value = anchors[0];
+      }
+
+      const brlmSelect = document.getElementById('intersect-brlm-select');
+      const prevBrlm = brlmSelect.value;
+      const brlms = Object.keys(brlmCounts)
+        .filter(b => !brlmQ || b.toLowerCase().includes(brlmQ))
+        .sort((x, y) => brlmCounts[y].size - brlmCounts[x].size || x.localeCompare(y));
+
+      brlmSelect.innerHTML =
+        `<option value="ALL">ALL BRLMs (${Object.keys(brlmCounts).length})</option>` +
+        brlms.map(b => `<option value="${b}">${b} (${brlmCounts[b].size} IPOs)</option>`).join('');
+
+      if (!resetSelection && prevBrlm && (prevBrlm === 'ALL' || brlms.includes(prevBrlm))) {
+        brlmSelect.value = prevBrlm;
+      }
+    }
+
+    function resetIntersectionSelectors() {
+      document.getElementById('intersect-anchor-search').value = '';
+      document.getElementById('intersect-brlm-search').value = '';
+      document.getElementById('perf-search').value = '';
+      tableSortState.perf.key = null;
+      updateSortHeaderIcons('perf');
+      populateIntersectionDropdowns(true);
+      document.getElementById('intersect-brlm-select').value = 'ALL';
+      renderPerformanceTool();
+    }
+
+    function populateMultiAnchorOptions() {
+      const q = document.getElementById('multi-anchor-search').value.toLowerCase().trim();
+      const anchorCounts = {};
+      db.feeder.forEach(r => {
+        const comp = String(r['Company'] || r['__col_0'] || '').trim();
+        const a = getFeederAnchorName(r);
+        if (!comp || comp === 'Company' || !a || a === 'No Anchor Data' || a.includes('#REF!')) return;
+        if (!anchorCounts[a]) anchorCounts[a] = new Set();
+        anchorCounts[a].add(comp);
+      });
+
+      const anchors = Object.keys(anchorCounts)
+        .filter(a => !q || a.toLowerCase().includes(q))
+        .sort((x, y) => anchorCounts[y].size - anchorCounts[x].size || x.localeCompare(y));
+
+      document.getElementById('multi-anchor-picker').innerHTML = anchors.map(a =>
+        `<option value="${a}">${a} (${anchorCounts[a].size} IPOs)</option>`
+      ).join('');
+
+      const pairs = getComputedAnchorSyndicatePairs();
+      document.getElementById('multi-pair-quickselect').innerHTML =
+        `<option value="">-- Select Frequent Co-Investing Anchor Pair --</option>` +
+        pairs.slice(0, 25).map(p =>
+          `<option value="${p.anchorA}|||${p.anchorB}">${p.anchorA} + ${p.anchorB} (${p.count} Shared IPOs)</option>`
+        ).join('');
+    }
+
+    function renderMultiAnchorTags() {
+      const container = document.getElementById('multi-anchor-tags-container');
+      if (selectedMultiAnchors.length === 0) {
+        container.innerHTML = `<span class="ret-muted">Select 2 or more anchors above to query shared IPOs.</span>`;
+        return;
+      }
+      container.innerHTML = selectedMultiAnchors.map((a, idx) => `
+        <span class="tag-chip">
+          <span>${a}</span>
+          <button onclick="removeAnchorTag(${idx})" class="tag-close">×</button>
+        </span>
+      `).join('');
+    }
+
+    function addSelectedAnchorTag() {
+      const val = document.getElementById('multi-anchor-picker').value;
+      if (val && !selectedMultiAnchors.includes(val)) {
+        selectedMultiAnchors.push(val);
+        renderMultiAnchorTags();
+        renderPerformanceTool();
+      }
+    }
+
+    function removeAnchorTag(idx) {
+      selectedMultiAnchors.splice(idx, 1);
+      renderMultiAnchorTags();
+      renderPerformanceTool();
+    }
+
+    function clearMultiAnchorTags() {
+      selectedMultiAnchors = [];
+      renderMultiAnchorTags();
+      renderPerformanceTool();
+    }
+
+    function applyQuickAnchorPair(val) {
+      if (!val) return;
+      const parts = val.split('|||');
+      if (parts.length === 2) {
+        selectedMultiAnchors = [parts[0], parts[1]];
+        renderMultiAnchorTags();
+        renderPerformanceTool();
+      }
+    }
+
+    function renderPerformanceTool() {
+      let matchingRows = [];
+      let queryTitle = '';
+
+      const perfSearchInput = document.getElementById('perf-search')?.value.trim() || '';
+      const dropdownSearchInput = perfQueryMode === 'INTERSECTION'
+        ? (document.getElementById('intersect-anchor-search')?.value.trim() || document.getElementById('intersect-brlm-search')?.value.trim() || '')
+        : (document.getElementById('multi-anchor-search')?.value.trim() || '');
+      const activeHighlightQuery = perfSearchInput || dropdownSearchInput;
+
+      if (perfQueryMode === 'INTERSECTION') {
+        const selAnchor = document.getElementById('intersect-anchor-select').value || 'ALL';
+        const selBrlm = document.getElementById('intersect-brlm-select').value || 'ALL';
+
+        matchingRows = db.feeder.filter(r => {
+          const comp = String(r['Company'] || r['__col_0'] || '').trim();
+          if (!comp || comp === 'Company') return false;
+          const a = getFeederAnchorName(r);
+          const b = getFeederBrlmName(r);
+          const matchA = selAnchor === 'ALL' || a === selAnchor;
+          const matchB = selBrlm === 'ALL' || b === selBrlm;
+          return matchA && matchB;
+        });
+
+        if (selAnchor !== 'ALL' && selBrlm !== 'ALL') {
+          queryTitle = `Joint Mandate: ${selAnchor} × ${selBrlm}`;
+        } else if (selAnchor !== 'ALL') {
+          queryTitle = `Anchor Portfolio: ${selAnchor} (All BRLMs)`;
+        } else if (selBrlm !== 'ALL') {
+          queryTitle = `BRLM Portfolio: ${selBrlm} (All Anchors)`;
+        } else {
+          queryTitle = `All Institutional Mandates (Consolidated by Company)`;
+        }
+      } else {
+        if (selectedMultiAnchors.length === 0) {
+          matchingRows = [];
+          queryTitle = 'No Anchors Selected';
+        } else {
+          const companyToAnchors = {};
+          db.feeder.forEach(r => {
+            const comp = String(r['Company'] || r['__col_0'] || '').trim();
+            const a = getFeederAnchorName(r);
+            if (!comp || comp === 'Company' || !a) return;
+            if (!companyToAnchors[comp]) companyToAnchors[comp] = new Set();
+            companyToAnchors[comp].add(a);
+          });
+
+          const coInvestedCompanies = new Set(
+            Object.keys(companyToAnchors).filter(comp =>
+              selectedMultiAnchors.every(selA => companyToAnchors[comp].has(selA))
+            )
+          );
+
+          matchingRows = db.feeder.filter(r => {
+            const comp = String(r['Company'] || r['__col_0'] || '').trim();
+            const a = getFeederAnchorName(r);
+            return coInvestedCompanies.has(comp) && selectedMultiAnchors.includes(a);
+          });
+
+          queryTitle = `Co-Investment Syndicate (${selectedMultiAnchors.join(' + ')})`;
+        }
+      }
+
+      const companyGroupMap = new Map();
+      matchingRows.forEach(r => {
+        const comp = String(r['Company'] || r['__col_0'] || '').trim();
+        if (!comp) return;
+
+        if (!companyGroupMap.has(comp)) {
+          companyGroupMap.set(comp, {
+            baseRow: r,
+            rawAnchors: new Set(),
+            normAnchors: new Set(),
+            rawBrlms: new Set(),
+            normBrlms: new Set()
+          });
+        }
+
+        const group = companyGroupMap.get(comp);
+        const rawA = String(r['Anchor'] || r['__col_1'] || '').trim();
+        const normA = getFeederAnchorName(r);
+        const rawB = String(r['BRLM'] || r['__col_2'] || '').trim();
+        const normB = getFeederBrlmName(r);
+
+        if (rawA && rawA !== '—') group.rawAnchors.add(rawA);
+        if (normA && normA !== '—') group.normAnchors.add(normA);
+        if (rawB && rawB !== '—') group.rawBrlms.add(rawB);
+        if (normB && normB !== '—') group.normBrlms.add(normB);
+      });
+
+      let groupedList = [...companyGroupMap.values()];
+      if (perfSearchInput) {
+        const pq = perfSearchInput.toLowerCase();
+        groupedList = groupedList.filter(g => {
+          const comp = String(g.baseRow['Company'] || g.baseRow['__col_0'] || '');
+          const aStr = [...g.normAnchors, ...g.rawAnchors].join(' ');
+          const bStr = [...g.normBrlms, ...g.rawBrlms].join(' ');
+          return `${comp} ${aStr} ${bStr}`.toLowerCase().includes(pq);
+        });
+      }
+
+      if (tableSortState.perf.key) {
+        const { key, dir } = tableSortState.perf;
+        groupedList.sort((a, b) => compareSortValues(getPerfGroupSortValue(a, key), getPerfGroupSortValue(b, key), dir));
+      }
+
+      const uniqueBaseRows = groupedList.map(g => g.baseRow);
+
+      const calcAvg = key => {
+        const vals = uniqueBaseRows.map(r => parseReturnPct(r[key])).filter(v => v !== null);
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      };
+
+      const rSinceList = uniqueBaseRows.map(r => parseReturnPct(r['SinceListing'] ?? r['__col_15'])).filter(v => v !== null);
+      const wins = rSinceList.filter(v => v > 0).length;
+      const hitRate = rSinceList.length ? (wins / rSinceList.length) * 100 : null;
+
+      document.getElementById('perf-summary-tbody').innerHTML = `
+        <tr>
+          <td class="text-left" style="font-weight: 700;">${queryTitle}</td>
+          <td class="text-right" style="font-weight: 700;">${groupedList.length}</td>
+          ${formatWinRateTd(hitRate)}
+          ${formatReturnTd(calcAvg('1D'))}
+          ${formatReturnTd(calcAvg('30D'))}
+          ${formatReturnTd(calcAvg('90D'))}
+          ${formatReturnTd(calcAvg('SinceListing'))}
+        </tr>
+      `;
+
+      document.getElementById('perf-tbody').innerHTML = groupedList.map((group, index) => {
+        const r = group.baseRow;
+        const compName = r['Company'] || r['__col_0'] || '—';
+
+        const anchorsToRender = group.normAnchors.size > 0 ? [...group.normAnchors] : [...group.rawAnchors];
+        const clickableAnchorsHtml = anchorsToRender.length > 0
+          ? anchorsToRender.map(a =>
+              `<span onclick="openIntersectionQuery('${a.replace(/'/g, "\\'")}', 'ALL')" class="entity-link">${highlightMatch(a, activeHighlightQuery)}</span>`
+            ).join(', ')
+          : '—';
+
+        const brlmsToRender = group.normBrlms.size > 0 ? [...group.normBrlms] : [...group.rawBrlms];
+        const clickableBrlmsHtml = brlmsToRender.length > 0
+          ? brlmsToRender.map(b =>
+              `<span onclick="openIntersectionQuery('ALL', '${b.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(b, activeHighlightQuery)}</span>`
+            ).join(', ')
+          : '—';
+
+        return `
+          <tr>
+            <td class="col-sno">${index + 1}</td>
+            <td class="text-left col-sticky-name">${highlightMatch(compName, activeHighlightQuery)}</td>
+            <td class="text-left col-anchor-wrap">${clickableAnchorsHtml}</td>
+            <td class="text-left">${clickableBrlmsHtml}</td>
+            <td class="text-left mono">${r['ListingDate'] || r['__col_3'] || '—'}</td>
+            ${formatNumberTd(r['IssueSize'] ?? r['__col_4'])}
+            ${formatWinRateTd(r['AnchorPctOfIssue'] ?? r['__col_5'])}
+            ${formatReturnTd(r['1D'] ?? r['__col_6'])}
+            ${formatReturnTd(r['7D'] ?? r['__col_7'])}
+            ${formatReturnTd(r['30D'] ?? r['__col_8'])}
+            ${formatReturnTd(r['35D'] ?? r['__col_9'])}
+            ${formatReturnTd(r['60D'] ?? r['__col_10'])}
+            ${formatReturnTd(r['90D'] ?? r['__col_11'])}
+            ${formatReturnTd(r['100D'] ?? r['__col_12'])}
+            ${formatReturnTd(r['365D'] ?? r['__col_13'])}
+            ${formatReturnTd(r['400D'] ?? r['__col_14'])}
+            ${formatReturnTd(r['SinceListing'] ?? r['__col_15'])}
+            <td class="text-left col-anchor-wrap">${clickableAnchorsHtml}</td>
+            <td class="text-left">${clickableBrlmsHtml}</td>
+          </tr>
+        `;
+      }).join('');
+
+      syncTopScrollbarWidths();
+    }
+
+    function openIntersectionQuery(anchorName, brlmName) {
+      switchPage('perf');
+      setPerfQueryMode('INTERSECTION');
+      document.getElementById('intersect-anchor-search').value = '';
+      document.getElementById('intersect-brlm-search').value = '';
+      populateIntersectionDropdowns(false);
+
+      const anchorSel = document.getElementById('intersect-anchor-select');
+      const brlmSel = document.getElementById('intersect-brlm-select');
+
+      if (anchorName === 'ALL') {
+        anchorSel.value = 'ALL';
+      } else {
+        const opts = [...anchorSel.options].map(o => o.value);
+        const match = opts.find(o => o.toLowerCase() === anchorName.toLowerCase()) ||
+                      opts.find(o => o.toLowerCase().includes(anchorName.toLowerCase()) || anchorName.toLowerCase().includes(o.toLowerCase()));
+        anchorSel.value = match || 'ALL';
+      }
+
+      if (brlmName === 'ALL') {
+        brlmSel.value = 'ALL';
+      } else {
+        const opts = [...brlmSel.options].map(o => o.value);
+        const match = opts.find(o => o.toLowerCase() === brlmName.toLowerCase()) ||
+                      opts.find(o => o.toLowerCase().includes(brlmName.toLowerCase()) || brlmName.toLowerCase().includes(o.toLowerCase()));
+        brlmSel.value = match || 'ALL';
+      }
+
+      renderPerformanceTool();
+    }
+
+    function openMultiAnchorSyndicate(anchorA, anchorB) {
+      switchPage('perf');
+      selectedMultiAnchors = [anchorA, anchorB];
+      renderMultiAnchorTags();
+      setPerfQueryMode('MULTI_ANCHOR');
+    }
+
+    // =========================================================================
+    // 8. PAGES 3, 4 & 5: LEADERBOARDS
+    // =========================================================================
+    function isValidLeaderboardRank(rankVal) {
+      if (rankVal === undefined || rankVal === null) return false;
+      const str = String(rankVal).trim();
+      if (str === '' || str.toLowerCase() === 'rank' || str.toLowerCase() === 'benchmark') return false;
+      return !Number.isNaN(Number(str));
+    }
+
+    function renderAnchorLeaderboard() {
+      const rawQuery = document.getElementById('anchor-lb-search').value.trim();
+      const q = rawQuery.toLowerCase();
+      const rows = db.anchorLeaderboard.filter(r => {
+        const rank = r['Unnamed: 0'] ?? r['__col_0'];
+        if (!isValidLeaderboardRank(rank)) return false;
+        const name = String(r['Anchor Performance Leaderboard'] || r['__col_1'] || '').trim();
+        return name && (!q || name.toLowerCase().includes(q));
+      });
+
+      document.getElementById('anchor-lb-tbody').innerHTML = rows.map((r, index) => {
+        const rank = r['Unnamed: 0'] ?? r['__col_0'];
+        const name = String(r['Anchor Performance Leaderboard'] || r['__col_1'] || '—').trim();
+        return `
+          <tr>
+            <td class="col-sno">${index + 1}</td>
+            <td class="text-left col-sticky-name">
+              <span onclick="openIntersectionQuery('${name.replace(/'/g, "\\'")}', 'ALL')" class="entity-link">${highlightMatch(name, rawQuery)}</span>
+            </td>
+            <td class="text-right">${Number(rank)}</td>
+            <td class="text-right">${r['Unnamed: 2'] ?? r['__col_2'] ?? '—'}</td>
+            ${formatReturnTd(r['Unnamed: 3'] ?? r['__col_3'])}
+            ${formatWinRateTd(r['Unnamed: 4'] ?? r['__col_4'])}
+          </tr>
+        `;
+      }).join('');
+      syncTopScrollbarWidths();
+    }
+
+    function renderBrlmLeaderboard() {
+      const rawQuery = document.getElementById('brlm-lb-search').value.trim();
+      const q = rawQuery.toLowerCase();
+      const rows = db.brlmLeaderboard.filter(r => {
+        const rank = r['c'] ?? r['Unnamed: 0'] ?? r['__col_0'];
+        if (!isValidLeaderboardRank(rank)) return false;
+        const name = String(
+          r['BRLM Performance Leaderboard (companies with anchor data only)'] ||
+          r['BRLM Performance Leaderboard'] ||
+          r['__col_1'] ||
+          ''
+        ).trim();
+        return name && (!q || name.toLowerCase().includes(q));
+      });
+
+      document.getElementById('brlm-lb-tbody').innerHTML = rows.map((r, index) => {
+        const rank = r['c'] ?? r['Unnamed: 0'] ?? r['__col_0'];
+        const name = String(
+          r['BRLM Performance Leaderboard (companies with anchor data only)'] ||
+          r['BRLM Performance Leaderboard'] ||
+          r['__col_1'] ||
+          '—'
+        ).trim();
+        return `
+          <tr>
+            <td class="col-sno">${index + 1}</td>
+            <td class="text-left col-sticky-name">
+              <span onclick="openIntersectionQuery('ALL', '${name.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(name, rawQuery)}</span>
+            </td>
+            <td class="text-right">${Number(rank)}</td>
+            <td class="text-right">${r['Unnamed: 2'] ?? r['__col_2'] ?? '—'}</td>
+            ${formatReturnTd(r['Unnamed: 3'] ?? r['__col_3'])}
+            ${formatWinRateTd(r['Unnamed: 4'] ?? r['__col_4'])}
+          </tr>
+        `;
+      }).join('');
+      syncTopScrollbarWidths();
+    }
+
+    function renderSectorLeaderboard() {
+      const rawQuery = document.getElementById('sector-lb-search').value.trim();
+      const q = rawQuery.toLowerCase();
+      const rows = db.sectorLeaderboard.filter(r => {
+        const rank = r['Unnamed: 0'] ?? r['__col_0'];
+        if (!isValidLeaderboardRank(rank)) return false;
+        const sector = String(r['Sector Performance Leaderboard'] || r['__col_1'] || '').trim();
+        return sector && (!q || sector.toLowerCase().includes(q));
+      });
+
+      document.getElementById('sector-lb-tbody').innerHTML = rows.map((r, index) => {
+        const rank = r['Unnamed: 0'] ?? r['__col_0'];
+        const sector = String(r['Sector Performance Leaderboard'] || r['__col_1'] || '—').trim();
+        return `
+          <tr>
+            <td class="col-sno">${index + 1}</td>
+            <td class="text-left col-sticky-name">
+              <span onclick="filterMainBySector('${sector.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(sector, rawQuery)}</span>
+            </td>
+            <td class="text-right">${Number(rank)}</td>
+            <td class="text-right">${r['Unnamed: 2'] ?? r['__col_2'] ?? '—'}</td>
+            ${formatReturnTd(r['Unnamed: 3'] ?? r['__col_3'])}
+            ${formatWinRateTd(r['Unnamed: 4'] ?? r['__col_4'])}
+          </tr>
+        `;
+      }).join('');
+      syncTopScrollbarWidths();
+    }
+
+    function filterMainBySector(sectorName) {
+      switchPage('main');
+      document.getElementById('main-sector-select').value = sectorName;
+      renderMainDatabase();
+    }
+
+    // =========================================================================
+    // 9. PAGES 6 & 7: BRLM × ANCHOR MATRIX & ANCHOR × ANCHOR SYNDICATE
+    // =========================================================================
+    function getComputedBrlmAnchorMatrix() {
+      const pairMap = {};
+      db.feeder.forEach(r => {
+        const comp = String(r['Company'] || r['__col_0'] || '').trim();
+        if (!comp || comp === 'Company') return;
+        const anchor = getFeederAnchorName(r);
+        const brlm = getFeederBrlmName(r);
+        if (!anchor || !brlm || anchor === 'No Anchor Data' || anchor.includes('#REF!')) return;
+        const key = `${brlm}|||${anchor}`;
+        if (!pairMap[key]) pairMap[key] = { brlm, anchor, companies: new Map() };
+        if (!pairMap[key].companies.has(comp)) pairMap[key].companies.set(comp, r);
+      });
+
+      return Object.values(pairMap).map(item => {
+        const list = [...item.companies.values()];
+        const r1d = list.map(r => parseReturnPct(r['1D'] ?? r['__col_6'])).filter(v => v !== null);
+        const rSince = list.map(r => parseReturnPct(r['SinceListing'] ?? r['__col_15'])).filter(v => v !== null);
+        const wins = rSince.filter(v => v > 0).length;
+        return {
+          brlm: item.brlm,
+          anchor: item.anchor,
+          deals: list.length,
+          winRate: rSince.length ? (wins / rSince.length) * 100 : null,
+          avg1D: r1d.length ? r1d.reduce((a, b) => a + b, 0) / r1d.length : null,
+          avgSince: rSince.length ? rSince.reduce((a, b) => a + b, 0) / rSince.length : null
+        };
+      }).sort((a, b) => b.deals - a.deals || (b.avgSince ?? -9999) - (a.avgSince ?? -9999));
+    }
+
+    function renderBrlmAnchorMatrix() {
+      const rawBrlmQ = document.getElementById('matrix-brlm-search').value.trim();
+      const rawAnchorQ = document.getElementById('matrix-anchor-search').value.trim();
+      const brlmQ = rawBrlmQ.toLowerCase();
+      const anchorQ = rawAnchorQ.toLowerCase();
+      const minDeals = parseInt(document.getElementById('matrix-min-deals').value, 10) || 1;
+
+      const rows = getComputedBrlmAnchorMatrix().filter(item => {
+        if (item.deals < minDeals) return false;
+        if (brlmQ && !item.brlm.toLowerCase().includes(brlmQ)) return false;
+        if (anchorQ && !item.anchor.toLowerCase().includes(anchorQ)) return false;
+        return true;
+      });
+
+      document.getElementById('brlm-anchor-matrix-tbody').innerHTML = rows.map((item, idx) => `
+        <tr onclick="openIntersectionQuery('${item.anchor.replace(/'/g, "\\'")}', '${item.brlm.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+          <td class="col-sno">${idx + 1}</td>
+          <td class="text-left col-sticky-name"><span class="entity-link">${highlightMatch(item.brlm, rawBrlmQ)}</span></td>
+          <td class="text-left"><span class="entity-link">${highlightMatch(item.anchor, rawAnchorQ)}</span></td>
+          <td class="text-right" style="font-weight: 700;">${item.deals}</td>
+          ${formatWinRateTd(item.winRate)}
+          ${formatReturnTd(item.avg1D)}
+          ${formatReturnTd(item.avgSince)}
+        </tr>
+      `).join('');
+      syncTopScrollbarWidths();
+    }
+
+    function getComputedAnchorSyndicatePairs() {
+      const compMap = {};
+      db.feeder.forEach(r => {
+        const comp = String(r['Company'] || r['__col_0'] || '').trim();
+        const anchor = getFeederAnchorName(r);
+        if (!comp || comp === 'Company' || !anchor || anchor === 'No Anchor Data' || anchor.includes('#REF!')) return;
+        if (!compMap[comp]) compMap[comp] = { anchors: new Set(), row: r };
+        compMap[comp].anchors.add(anchor);
+      });
+
+      const pairStats = {};
+      Object.entries(compMap).forEach(([comp, data]) => {
+        const anchors = [...data.anchors].sort();
+        for (let i = 0; i < anchors.length; i++) {
+          for (let j = i + 1; j < anchors.length; j++) {
+            const key = `${anchors[i]}|||${anchors[j]}`;
+            if (!pairStats[key]) {
+              pairStats[key] = { anchorA: anchors[i], anchorB: anchors[j], rows: [], companies: [] };
+            }
+            pairStats[key].rows.push(data.row);
+            pairStats[key].companies.push(comp);
+          }
+        }
+      });
+
+      return Object.values(pairStats).map(p => {
+        const rets = p.rows.map(r => parseReturnPct(r['SinceListing'] ?? r['__col_15'])).filter(v => v !== null);
+        const wins = rets.filter(v => v > 0).length;
+        return {
+          anchorA: p.anchorA,
+          anchorB: p.anchorB,
+          count: p.companies.length,
+          avgReturn: rets.length ? rets.reduce((a, b) => a + b, 0) / rets.length : null,
+          winRate: rets.length ? (wins / rets.length) * 100 : null,
+          companies: p.companies
+        };
+      }).sort((a, b) => b.count - a.count || (b.avgReturn ?? -9999) - (a.avgReturn ?? -9999));
+    }
+
+    function renderAnchorSyndicateLeaderboard() {
+      const rawQuery = document.getElementById('syndicate-anchor-search').value.trim();
+      const q = rawQuery.toLowerCase();
+      const minDeals = parseInt(document.getElementById('syndicate-min-deals').value, 10) || 1;
+
+      const pairs = getComputedAnchorSyndicatePairs().filter(p => {
+        if (p.count < minDeals) return false;
+        if (q && !`${p.anchorA} ${p.anchorB}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      document.getElementById('anchor-syndicate-tbody').innerHTML = pairs.map((p, idx) => `
+        <tr onclick="openMultiAnchorSyndicate('${p.anchorA.replace(/'/g, "\\'")}', '${p.anchorB.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+          <td class="col-sno">${idx + 1}</td>
+          <td class="text-left col-sticky-name"><span class="entity-link">${highlightMatch(p.anchorA, rawQuery)}</span></td>
+          <td class="text-left"><span class="entity-link">${highlightMatch(p.anchorB, rawQuery)}</span></td>
+          <td class="text-right" style="font-weight: 700;">${p.count}</td>
+          ${formatReturnTd(p.avgReturn)}
+          ${formatWinRateTd(p.winRate)}
+          <td class="text-left" style="color: #4B5563; max-width: 420px; overflow: hidden; text-overflow: ellipsis;" title="${p.companies.join(', ')}">
+            ${p.companies.join(', ')}
+          </td>
+        </tr>
+      `).join('');
+      syncTopScrollbarWidths();
+    }
+
+    // =========================================================================
+    // 10. PAGE 8: INTERACTIVE SYNDICATE NETWORK GRAPH WITH HOVER TOOLTIP
+    // =========================================================================
+    let netNodes = [];
+    let netEdges = [];
+    let draggedNode = null;
+    let hoveredNode = null;
+
+    function buildAndRenderNetworkGraph() {
+      const minDeals = parseInt(document.getElementById('network-min-deals').value, 10) || 2;
+      const matrix = getComputedBrlmAnchorMatrix().filter(e => e.deals >= minDeals);
+
+      const nodeMap = new Map();
+      netEdges = [];
+
+      matrix.forEach(item => {
+        const bKey = `BRLM:${item.brlm}`;
+        const aKey = `ANCHOR:${item.anchor}`;
+
+        if (!nodeMap.has(bKey)) {
+          nodeMap.set(bKey, { id: bKey, label: item.brlm, type: 'BRLM', degree: 0, x: 0, y: 0, vx: 0, vy: 0 });
+        }
+        if (!nodeMap.has(aKey)) {
+          nodeMap.set(aKey, { id: aKey, label: item.anchor, type: 'ANCHOR', degree: 0, x: 0, y: 0, vx: 0, vy: 0 });
+        }
+
+        const bNode = nodeMap.get(bKey);
+        const aNode = nodeMap.get(aKey);
+        bNode.degree += item.deals;
+        aNode.degree += item.deals;
+
+        netEdges.push({ source: bNode, target: aNode, deals: item.deals });
+      });
+
+      netNodes = [...nodeMap.values()];
+      const canvas = document.getElementById('syndicate-canvas');
+      if (!canvas) return;
+      const W = canvas.width;
+      const H = canvas.height;
+
+      netNodes.forEach((n, i) => {
+        if (n.label.includes('Getfive') || n.label.includes('Resonance') || n.label.includes('Universal Golden')) {
+          n.x = W * 0.52 + (i % 4 - 1.5) * 75;
+          n.y = H * 0.88 + (i % 2 === 0 ? -18 : 22);
+        } else {
+          const angle = (i / Math.max(1, netNodes.length)) * Math.PI * 2;
+          const radius = n.degree > 6 ? 110 : 230;
+          n.x = W / 2 + Math.cos(angle) * radius * 1.4;
+          n.y = H * 0.44 + Math.sin(angle) * radius * 0.85;
+        }
+      });
+
+      for (let iter = 0; iter < 140; iter++) {
+        for (let i = 0; i < netNodes.length; i++) {
+          for (let j = i + 1; j < netNodes.length; j++) {
+            const n1 = netNodes[i];
+            const n2 = netNodes[j];
+            let dx = n1.x - n2.x;
+            let dy = n1.y - n2.y;
+            let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            if (dist < 220) {
+              const repulse = (3200 / (dist * dist));
+              n1.vx += (dx / dist) * repulse;
+              n1.vy += (dy / dist) * repulse;
+              n2.vx -= (dx / dist) * repulse;
+              n2.vy -= (dy / dist) * repulse;
+            }
+          }
+        }
+
+        netEdges.forEach(e => {
+          let dx = e.target.x - e.source.x;
+          let dy = e.target.y - e.source.y;
+          let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const targetDist = 115;
+          const force = (dist - targetDist) * 0.035;
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+          e.source.vx += fx;
+          e.source.vy += fy;
+          e.target.vx -= fx;
+          e.target.vy -= fy;
+        });
+
+        netNodes.forEach(n => {
+          if (!n.label.includes('Getfive') && !n.label.includes('Resonance') && !n.label.includes('Universal Golden')) {
+            n.vx += (W / 2 - n.x) * 0.008;
+            n.vy += (H * 0.44 - n.y) * 0.01;
+          }
+          n.x = Math.max(90, Math.min(W - 140, n.x + n.vx * 0.35));
+          n.y = Math.max(45, Math.min(H - 45, n.y + n.vy * 0.35));
+          n.vx = 0;
+          n.vy = 0;
+        });
+      }
+
+      document.getElementById('network-stats-label').textContent =
+        `Nodes: ${netNodes.length} | Edges: ${netEdges.length} (Min ${minDeals}+ Deals)`;
+
+      drawNetworkFrame();
+    }
+
+    function drawNetworkFrame() {
+      const canvas = document.getElementById('syndicate-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      const searchQ = (document.getElementById('network-search').value || '').toLowerCase().trim();
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, W, H);
+
+      netEdges.forEach(e => {
+        const isConnectedToHover = hoveredNode && (e.source === hoveredNode || e.target === hoveredNode);
+        ctx.beginPath();
+        ctx.moveTo(e.source.x, e.source.y);
+        ctx.lineTo(e.target.x, e.target.y);
+
+        if (isConnectedToHover) {
+          ctx.lineWidth = Math.min(10, 2.2 + e.deals * 1.2);
+          ctx.strokeStyle = '#D4AF37';
+          ctx.globalAlpha = 0.95;
+        } else {
+          ctx.lineWidth = Math.min(9, 1.2 + e.deals * 1.1);
+          ctx.strokeStyle = '#9CA3AF';
+          ctx.globalAlpha = hoveredNode ? 0.22 : 0.65;
+        }
+        ctx.stroke();
+      });
+      ctx.globalAlpha = 1.0;
+
+      netNodes.forEach(n => {
+        const isMatch = searchQ && n.label.toLowerCase().includes(searchQ);
+        const isHovered = hoveredNode === n;
+        const radius = isHovered ? 11.5 : (isMatch ? 11 : 8);
+
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = n.type === 'BRLM' ? '#DC2626' : '#2563EB';
+        ctx.fill();
+        ctx.lineWidth = (isHovered || isMatch) ? 2.5 : 1.2;
+        ctx.strokeStyle = isHovered ? '#D4AF37' : (isMatch ? '#111827' : '#FFFFFF');
+        ctx.stroke();
+
+        ctx.font = `${(isHovered || isMatch) ? '700 12px' : '500 11px'} -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif`;
+        ctx.fillStyle = (isHovered || isMatch) ? '#0F172A' : '#1F2937';
+        ctx.fillText(n.label, n.x + 12, n.y + 4);
+      });
+
+      if (hoveredNode) {
+        const partnerCount = netEdges.filter(e => e.source === hoveredNode || e.target === hoveredNode).length;
+        const titleText = hoveredNode.label;
+        const typeText = `Type: ${hoveredNode.type === 'BRLM' ? 'BRLM (Lead Manager)' : 'Anchor Investor'}`;
+        const dealText = `Total Joint Deals (Degree): ${hoveredNode.degree}  |  Syndicate Partners: ${partnerCount}`;
+        const hintText = `Click node to inspect deal tape in Performance Tool →`;
+
+        ctx.font = '700 12px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif';
+        const w1 = ctx.measureText(titleText).width;
+        ctx.font = '500 11px "SF Mono", ui-monospace, Menlo, monospace';
+        const w2 = ctx.measureText(dealText).width;
+        const boxW = Math.max(w1, w2, 260) + 24;
+        const boxH = 74;
+
+        let tx = hoveredNode.x + 16;
+        let ty = hoveredNode.y - boxH - 10;
+        if (tx + boxW > W - 12) tx = hoveredNode.x - boxW - 16;
+        if (ty < 12) ty = hoveredNode.y + 16;
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
+        ctx.fillRect(tx, ty, boxW, boxH);
+        ctx.strokeStyle = '#D4AF37';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(tx, ty, boxW, boxH);
+
+        ctx.font = '700 12px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif';
+        ctx.fillStyle = '#D4AF37';
+        ctx.fillText(titleText, tx + 11, ty + 19);
+
+        ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif';
+        ctx.fillStyle = hoveredNode.type === 'BRLM' ? '#F87171' : '#60A5FA';
+        ctx.fillText(typeText, tx + 11, ty + 36);
+
+        ctx.font = '500 11px "SF Mono", ui-monospace, Menlo, monospace';
+        ctx.fillStyle = '#F8FAFC';
+        ctx.fillText(dealText, tx + 11, ty + 53);
+
+        ctx.font = '400 10px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif';
+        ctx.fillStyle = '#94A3B8';
+        ctx.fillText(hintText, tx + 11, ty + 67);
+      }
+    }
+
+    function initNetworkCanvasInteractions() {
+      const canvas = document.getElementById('syndicate-canvas');
+      if (!canvas) return;
+
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let moved = false;
+
+      function getCanvasCoords(evt) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+          x: (evt.clientX - rect.left) * scaleX,
+          y: (evt.clientY - rect.top) * scaleY
+        };
+      }
+
+      canvas.addEventListener('mousedown', evt => {
+        const pos = getCanvasCoords(evt);
+        dragStartX = pos.x;
+        dragStartY = pos.y;
+        moved = false;
+        draggedNode = netNodes.find(n => Math.hypot(n.x - pos.x, n.y - pos.y) <= 14) || null;
+        if (draggedNode) {
+          canvas.style.cursor = 'grabbing';
+        }
+      });
+
+      canvas.addEventListener('mousemove', evt => {
+        const pos = getCanvasCoords(evt);
+
+        if (draggedNode) {
+          if (Math.hypot(pos.x - dragStartX, pos.y - dragStartY) > 4) moved = true;
+          draggedNode.x = pos.x;
+          draggedNode.y = pos.y;
+          hoveredNode = draggedNode;
+          drawNetworkFrame();
+          return;
+        }
+
+        const foundHover = netNodes.find(n => Math.hypot(n.x - pos.x, n.y - pos.y) <= 13) || null;
+        if (foundHover !== hoveredNode) {
+          hoveredNode = foundHover;
+          canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
+          drawNetworkFrame();
+        }
+      });
+
+      canvas.addEventListener('mouseleave', () => {
+        if (hoveredNode) {
+          hoveredNode = null;
+          drawNetworkFrame();
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (draggedNode && !moved) {
+          if (draggedNode.type === 'ANCHOR') {
+            openIntersectionQuery(draggedNode.label, 'ALL');
+          } else {
+            openIntersectionQuery('ALL', draggedNode.label);
+          }
+        }
+        draggedNode = null;
+        if (canvas) canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
+      });
+    }
+
+    // =========================================================================
+    // 11. PAGE 9: MODEL D LOGISTIC REGRESSION MULTIBAGGER CALCULATOR
+    // =========================================================================
+    const modelDConfig = {
+      beta0: -2.6174,
+      betaPop1D: 1.6632,
+      betaAnchorAlloc: 0.0417,
+      betaIssueSize: -0.0013
+    };
+
+    function updateMultibaggerCalculator() {
+      const pop1dPct = parseFloat(document.getElementById('slider-pop1d').value) || 0;
+      const anchorAlloc = parseFloat(document.getElementById('slider-anchor-alloc').value) || 0;
+      const issueSize = parseFloat(document.getElementById('slider-issue-size').value) || 0;
+
+      const popSign = pop1dPct > 0 ? '+' : '';
+      document.getElementById('lbl-pop1d').textContent = `${popSign}${pop1dPct.toFixed(1)}%`;
+      document.getElementById('lbl-anchor-alloc').textContent = `${anchorAlloc.toFixed(1)}%`;
+      document.getElementById('lbl-issue-size').textContent = `₹${issueSize.toFixed(1)} Cr`;
+
+      const popDecimal = pop1dPct / 100.0;
+      const contribPop = modelDConfig.betaPop1D * popDecimal;
+      const contribAnchor = modelDConfig.betaAnchorAlloc * anchorAlloc;
+      const contribSize = modelDConfig.betaIssueSize * issueSize;
+
+      const z = modelDConfig.beta0 + contribPop + contribAnchor + contribSize;
+      const odds = Math.exp(z);
+      const baseOdds = Math.exp(modelDConfig.beta0);
+      const probPct = (1 / (1 + Math.exp(-z))) * 100;
+
+      document.getElementById('calc-prob-display').textContent = `${probPct.toFixed(1)}%`;
+      document.getElementById('calc-prob-bar').style.width = `${Math.max(2, Math.min(100, probPct)).toFixed(1)}%`;
+      document.getElementById('calc-log-odds').textContent = `Log-Odds: ${z >= 0 ? '+' : ''}${z.toFixed(3)}`;
+      document.getElementById('calc-odds-mult').textContent = `${(odds / baseOdds).toFixed(1)}x Higher Odds vs. Unanchored Baseline`;
+
+      document.getElementById('or-pop1d').textContent = `OR: ${Math.exp(modelDConfig.betaPop1D).toFixed(2)}x`;
+      document.getElementById('or-anchor').textContent = `OR: ${Math.exp(modelDConfig.betaAnchorAlloc).toFixed(3)}x / %`;
+      document.getElementById('or-size').textContent = `OR: ${Math.exp(modelDConfig.betaIssueSize).toFixed(3)}x / Cr`;
+
+      document.getElementById('contrib-pop1d').textContent = `Score Lift: ${contribPop >= 0 ? '+' : ''}${contribPop.toFixed(3)}`;
+      document.getElementById('contrib-anchor').textContent = `Score Lift: ${contribAnchor >= 0 ? '+' : ''}${contribAnchor.toFixed(3)}`;
+      document.getElementById('contrib-size').textContent = `Score Lift: ${contribSize >= 0 ? '+' : ''}${contribSize.toFixed(3)}`;
+
+      const badgeEl = document.getElementById('calc-regime-badge');
+      const noteEl = document.getElementById('calc-quant-note');
+
+      if (probPct >= 45) {
+        badgeEl.className = 'gold-pill';
+        badgeEl.removeAttribute('style');
+        badgeEl.textContent = '★ Tier-1 High-Conviction Multibagger Setup';
+      } else if (probPct >= 20) {
+        badgeEl.className = 'royal-pill';
+        badgeEl.removeAttribute('style');
+        badgeEl.textContent = 'Moderate Institutional Setup';
+      } else {
+        badgeEl.className = 'drag-pill';
+        badgeEl.textContent = 'High Dilution / Sub-Threshold Risk';
+      }
+
+      if (anchorAlloc >= 25.5) {
+        noteEl.innerHTML = `<strong>Quant Insight (PDP Regime Active):</strong> Anchor allocation of <strong>${anchorAlloc.toFixed(1)}%</strong> is inside the 26%–30% institutional saturation zone, unlocking the steepest non-linear secondary return lift.`;
+      } else if (anchorAlloc <= 15.0) {
+        noteEl.innerHTML = `<strong>Quant Warning (Kaplan-Meier Hazard):</strong> Anchor allocation &le; 15% places this issue on the lower survival curve (18.0% 100-day price support survival vs. 45.0% for &gt;15% anchored IPOs).`;
+      } else {
+        noteEl.innerHTML = `<strong>Quant Insight:</strong> Issue is above the 15% Kaplan-Meier survival support threshold, with each +1% Anchor allocation multiplying multibagger odds by 1.0426x.`;
+      }
+    }
+
+    function applyCalculatorPreset(preset) {
+      if (preset === 'TIER1_ANCHORED') {
+        document.getElementById('slider-pop1d').value = 90;
+        document.getElementById('slider-anchor-alloc').value = 28.5;
+        document.getElementById('slider-issue-size').value = 42;
+      } else if (preset === 'MEDIAN_SME') {
+        document.getElementById('slider-pop1d').value = 28;
+        document.getElementById('slider-anchor-alloc').value = 18.0;
+        document.getElementById('slider-issue-size').value = 55;
+      } else if (preset === 'UNANCHORED_TRAP') {
+        document.getElementById('slider-pop1d').value = 0;
+        document.getElementById('slider-anchor-alloc').value = 0;
+        document.getElementById('slider-issue-size').value = 85;
+      }
+      updateMultibaggerCalculator();
+    }
+
+    // =========================================================================
+    // 12. PAGE 10: KAPLAN-MEIER SURVIVAL CURVE & COX HAZARD ENGINE (MODEL F)
+    // =========================================================================
+    const kmSurvivalData = {
+      horizons: [0, 1, 7, 30, 35, 60, 90, 100, 365, 400],
+      anchoredGt15: [
+        { x: 0,   y: 1.0000 },
+        { x: 1,   y: 0.7932 },
+        { x: 7,   y: 0.6668 },
+        { x: 30,  y: 0.5738 },
+        { x: 35,  y: 0.5494 },
+        { x: 60,  y: 0.5151 },
+        { x: 90,  y: 0.4640 },
+        { x: 100, y: 0.4495 },
+        { x: 365, y: 0.3639 },
+        { x: 400, y: 0.3448 }
+      ],
+      unanchoredLte15: [
+        { x: 0,   y: 1.0000 },
+        { x: 1,   y: 0.3354 },
+        { x: 7,   y: 0.2368 },
+        { x: 30,  y: 0.2229 },
+        { x: 35,  y: 0.1950 },
+        { x: 60,  y: 0.1875 },
+        { x: 90,  y: 0.1875 },
+        { x: 100, y: 0.1800 },
+        { x: 365, y: 0.1246 },
+        { x: 400, y: 0.1246 }
+      ]
+    };
+
+    let kmChartInstance = null;
+    let showLockInMarkers = true;
+
+    function renderKaplanMeierModule() {
+      const ctx = document.getElementById('km-survival-chart');
+      if (!ctx) return;
+
+      if (kmChartInstance) {
+        kmChartInstance.destroy();
+      }
+
+      const lockInPlugin = {
+        id: 'lockInLines',
+        afterDraw(chart) {
+          if (!showLockInMarkers) return;
+          const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+          [
+            { day: 30, label: '30D (50% Unlock: -3.19%)' },
+            { day: 90, label: '90D (100% Unlock: -1.10%)' }
+          ].forEach(marker => {
+            const xPos = x.getPixelForValue(marker.day);
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = '#D4AF37';
+            ctx.lineWidth = 1.5;
+            ctx.moveTo(xPos, top);
+            ctx.lineTo(xPos, bottom);
+            ctx.stroke();
+
+            ctx.fillStyle = '#0F172A';
+            ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif';
+            ctx.fillText(marker.label, xPos + 4, top + 14);
+            ctx.restore();
+          });
+        }
+      };
+
+      kmChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [
+            {
+              label: 'Anchored (>15% Alloc) [N = 275]',
+              data: kmSurvivalData.anchoredGt15,
+              borderColor: '#16A34A',
+              backgroundColor: 'rgba(22, 163, 74, 0.08)',
+              borderWidth: 2.5,
+              stepped: 'after',
+              pointRadius: 3.5,
+              pointBackgroundColor: '#16A34A',
+              fill: false
+            },
+            {
+              label: 'Low/Zero Anchor (<=15% Alloc) [N = 172]',
+              data: kmSurvivalData.unanchoredLte15,
+              borderColor: '#DC2626',
+              backgroundColor: 'rgba(220, 38, 38, 0.08)',
+              borderWidth: 2.5,
+              stepped: 'after',
+              pointRadius: 3.5,
+              pointBackgroundColor: '#DC2626',
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { family: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif', size: 12, weight: '600' },
+                color: '#0F172A'
+              }
+            },
+            tooltip: {
+              callbacks: {
+                title: items => `Trading Day ${items[0].parsed.x} Post-Listing`,
+                label: item => `${item.dataset.label}: ${(item.parsed.y * 100).toFixed(2)}% Survival Probability`
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              min: 0,
+              max: 405,
+              title: {
+                display: true,
+                text: 'Trading Days Since Listing (0 to 400D)',
+                font: { weight: '700', size: 11.5 },
+                color: '#0F172A'
+              },
+              grid: { color: '#E2E8F0' }
+            },
+            y: {
+              min: 0,
+              max: 1.05,
+              ticks: {
+                stepSize: 0.2,
+                callback: val => val.toFixed(1)
+              },
+              title: {
+                display: true,
+                text: 'Survival Probability (Trading Above Issue Price)',
+                font: { weight: '700', size: 11.5 },
+                color: '#0F172A'
+              },
+              grid: { color: '#E2E8F0' }
+            }
+          }
+        },
+        plugins: [lockInPlugin]
+      });
+
+      const tbody = document.getElementById('km-table-tbody');
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td class="text-left" style="font-weight:700; color:#16A34A !important;">● Anchored (&gt;15% Alloc)</td>
+            ${kmSurvivalData.anchoredGt15.map(pt => `<td class="text-right ret-green">${(pt.y * 100).toFixed(1)}%</td>`).join('')}
+          </tr>
+          <tr>
+            <td class="text-left" style="font-weight:700; color:#DC2626 !important;">● Low/Zero Anchor (&le;15% Alloc)</td>
+            ${kmSurvivalData.unanchoredLte15.map(pt => `<td class="text-right ret-red">${(pt.y * 100).toFixed(1)}%</td>`).join('')}
+          </tr>
+          <tr>
+            <td class="text-left" style="font-weight:700; color:#0F172A;">Survival Spread (Alpha Cushion)</td>
+            ${kmSurvivalData.anchoredGt15.map((pt, i) => {
+              const diff = (pt.y - kmSurvivalData.unanchoredLte15[i].y) * 100;
+              return `<td class="text-right" style="font-weight:700; color:#1D4ED8;">+${diff.toFixed(1)}%</td>`;
+            }).join('')}
+          </tr>
+        `;
+      }
+    }
+
+    function toggleKmConfidenceBand() {
+      showLockInMarkers = !showLockInMarkers;
+      renderKaplanMeierModule();
+    }
+
+    // =========================================================================
+    // 13. PAGE 11: RANDOM FOREST (%IncMSE) & K-MEANS CLUSTERS (MODELS G & H)
+    // =========================================================================
+    const rfFeatureImportanceData = [
+      { rank: 1, feature: 'IssueSize',   incMSE: 5.62, incNodePurity: 47.90, role: 'Top OOB Return Predictor (Non-linear interaction with syndicate tier)' },
+      { rank: 2, feature: 'Pop_1D',      incMSE: 3.84, incNodePurity: 58.35, role: 'Primary Momentum Signal (OR = 5.28x multibagger odds in Model D)' },
+      { rank: 3, feature: 'IssuePrice',  incMSE: 3.81, incNodePurity: 30.30, role: 'Nominal Share Pricing & Retail Liquidity Denominator Effect' },
+      { rank: 4, feature: 'AnchorAlloc', incMSE: 3.26, incNodePurity: 42.45, role: 'Structural Regime Shift at >15% (Survival) and >25.5% (PDP Cliff)' },
+      { rank: 5, feature: 'Sector',      incMSE: 1.54, incNodePurity: 96.80, role: 'Highest Node-Splitting Purity (#1 in IncNodePurity; Capital Goods lead)' },
+      { rank: 6, feature: 'BRLM',        incMSE: -0.25, incNodePurity: 96.10, role: 'High Node Purity via Syndicate Pairing (Hem & Smart Horizon Alpha)' }
+    ];
+
+    const kMeansArchetypesData = [
+      {
+        clusterId: 'Cluster 2 (Red)',
+        archetype: '1. Hyper-Compounders',
+        subtitle: 'High Conviction Alpha & Superior Win Rates',
+        badgeClass: 'gold-pill',
+        funds: [
+          { id: 19, name: 'Grobiz SME Opportunities Fund', deals: 8,  ret: 194.39, win: 87.5 },
+          { id: 61, name: 'VBCube Ventures',               deals: 10, ret: 173.86, win: 66.7 },
+          { id: 59, name: 'Tattvam AIF Trust',             deals: 7,  ret: 151.09, win: 71.4 },
+          { id: 18, name: 'Fortune Hands Growth Fund',     deals: 16, ret: 135.07, win: 81.3 },
+          { id: 60, name: 'Upsurge Opportunities',         deals: 6,  ret: 130.10, win: 83.3 },
+          { id: 40, name: 'Motilal Oswal Finvest',         deals: 13, ret: 129.07, win: 69.2 },
+          { id: 21, name: 'Hem Growth Opportunities Fund', deals: 9,  ret: 126.71, win: 77.8 },
+          { id: 48, name: 'Persistent Growth Fund',        deals: 18, ret: 126.59, win: 72.2 },
+          { id: 7,  name: 'Bharat Venture Opportunities Fund', deals: 20, ret: 119.49, win: 55.0 },
+          { id: 8,  name: 'CCV Emerging Opportunities Fund',   deals: 6,  ret: 116.68, win: 66.7 },
+          { id: 36, name: 'Mili Capital Investment Trust', deals: 13, ret: 96.25,  win: 66.7 },
+          { id: 66, name: 'YR Investment Opportunities Fund',  deals: 8,  ret: 95.47,  win: 75.0 },
+          { id: 44, name: 'Nine Alps Trust',               deals: 10, ret: 94.09,  win: 60.0 },
+          { id: 15, name: 'Evergrow Capital Opportunities',deals: 14, ret: 92.70,  win: 64.3 },
+          { id: 3,  name: 'Abakkus Venture Opportunities Fund',deals: 9,  ret: 92.09,  win: 66.7 },
+          { id: 29, name: 'Kingsman Wealth Fund',          deals: 9,  ret: 88.97,  win: 44.4 },
+          { id: 62, name: 'Vijit Growth Fund',             deals: 9,  ret: 85.23,  win: 88.9 },
+          { id: 45, name: 'North Star Opportunities Fund', deals: 11, ret: 81.49,  win: 81.8 },
+          { id: 28, name: 'J4S Venture Fund',              deals: 8,  ret: 81.00,  win: 62.5 },
+          { id: 25, name: 'Innovative Vision Fund',        deals: 19, ret: 76.20,  win: 78.9 },
+          { id: 57, name: 'Strategic Sixth Sense Capital Fund', deals: 8, ret: 73.82,  win: 75.0 },
+          { id: 26, name: 'India Max Investment',          deals: 18, ret: 64.27,  win: 58.8 },
+          { id: 1,  name: '360 ONE LVF Treasury Solutions',deals: 7,  ret: 62.75,  win: 57.1 },
+          { id: 6,  name: 'Beacon Stone Capital',          deals: 13, ret: 55.92,  win: 76.9 }
+        ]
+      },
+      {
+        clusterId: 'Cluster 3 (Blue)',
+        archetype: '2. Cartel Spine',
+        subtitle: 'High-Volume Syndicate Market Makers (22–62 IPOs)',
+        badgeClass: 'royal-pill',
+        funds: [
+          { id: 55, name: 'Sanshi Fund I',                 deals: 31, ret: 117.69, win: 58.1 },
+          { id: 38, name: 'Mint Focused Growth Fund',      deals: 22, ret: 104.60, win: 68.2 },
+          { id: 31, name: 'LRSD Securities',               deals: 34, ret: 95.97,  win: 58.8 },
+          { id: 16, name: 'Finavenue Capital Trust',       deals: 34, ret: 85.64,  win: 61.8 },
+          { id: 35, name: 'Meru Investment Fund',          deals: 23, ret: 84.90,  win: 69.6 },
+          { id: 63, name: 'Vikasa India EIF',              deals: 54, ret: 76.06,  win: 54.7 },
+          { id: 51, name: 'Rajasthan Global Securities',   deals: 56, ret: 75.57,  win: 60.7 },
+          { id: 2,  name: 'Aarth AIF',                     deals: 41, ret: 70.88,  win: 65.0 },
+          { id: 56, name: 'Shine Star Build-Cap',          deals: 47, ret: 58.15,  win: 57.4 },
+          { id: 64, name: 'Viney Growth Fund',             deals: 26, ret: 53.92,  win: 65.4 },
+          { id: 41, name: 'NAV Capital',                   deals: 38, ret: 51.82,  win: 62.2 },
+          { id: 54, name: 'Saint Capital Fund',            deals: 62, ret: 44.63,  win: 54.8 },
+          { id: 12, name: 'Craft Emerging Market Fund',    deals: 43, ret: 25.13,  win: 53.5 }
+        ]
+      },
+      {
+        clusterId: 'Cluster 1 (Green)',
+        archetype: '3. Safe Specialists',
+        subtitle: 'Selective Domain Allocators & Steady Hit Rates',
+        badgeClass: 'royal-pill',
+        funds: [
+          { id: 13, name: 'Ekamya Pragati Fund',           deals: 5,  ret: 95.60,  win: 80.0 },
+          { id: 65, name: 'Wealthwave Capital Trust',      deals: 6,  ret: 87.58,  win: 66.7 },
+          { id: 47, name: 'PESB Alpha Fund',               deals: 10, ret: 83.74,  win: 66.7 },
+          { id: 39, name: 'Moneywise Financial Services',  deals: 13, ret: 69.81,  win: 83.3 },
+          { id: 33, name: 'M7 Global Fund',                deals: 11, ret: 66.02,  win: 70.0 },
+          { id: 17, name: 'Finvesta First',                deals: 7,  ret: 65.78,  win: 71.4 },
+          { id: 46, name: 'Nova Global Opportunities',     deals: 10, ret: 65.76,  win: 70.0 },
+          { id: 42, name: 'Navbharat Investment Trust',    deals: 11, ret: 65.14,  win: 72.7 },
+          { id: 34, name: 'Mavira Growth Opportunities Fund', deals: 7, ret: 63.11, win: 71.4 },
+          { id: 14, name: 'Eminence Global Fund',          deals: 8,  ret: 54.13,  win: 62.5 },
+          { id: 5,  name: 'Ashika Global Securities',      deals: 11, ret: 47.11,  win: 81.8 },
+          { id: 22, name: 'Holani Venture Capital Fund',   deals: 11, ret: 43.89,  win: 63.6 },
+          { id: 24, name: 'India Equity Fund',             deals: 8,  ret: 43.74,  win: 75.0 },
+          { id: 43, name: 'Negen Undiscovered Value Fund', deals: 17, ret: 38.74,  win: 64.7 },
+          { id: 4,  name: 'Abundantia Capital',            deals: 9,  ret: 31.05,  win: 55.6 },
+          { id: 49, name: 'Pine Oak Global Fund',          deals: 15, ret: 21.09,  win: 60.0 },
+          { id: 30, name: 'Krushnam Nexus Capital Scheme', deals: 7,  ret: 15.17,  win: 71.4 }
+        ]
+      },
+      {
+        clusterId: 'Cluster 4 (Purple)',
+        archetype: '4. Dilution Traps',
+        subtitle: 'Low Win-Rate / Adverse Selection Subscribers',
+        badgeClass: 'drag-pill',
+        funds: [
+          { id: 53, name: 'SB Opportunities Fund',         deals: 16, ret: 60.40,  win: 37.5 },
+          { id: 27, name: 'Invicta Continuum Fund I',      deals: 10, ret: 43.91,  win: 40.0 },
+          { id: 20, name: 'HDFC Bank Ltd',                 deals: 12, ret: 39.64,  win: 41.7 },
+          { id: 52, name: 'Resonance Opportunities Fund',  deals: 9,  ret: 22.47,  win: 55.6 },
+          { id: 50, name: 'Radiant Global Fund',           deals: 9,  ret: 17.26,  win: 44.4 },
+          { id: 32, name: 'Longthrive Capital',            deals: 16, ret: 17.02,  win: 37.5 },
+          { id: 9,  name: 'Carnelian AIF',                 deals: 6,  ret: 7.45,   win: 33.3 },
+          { id: 37, name: 'Minerva Emerging Opportunities Fund', deals: 19, ret: 5.54, win: 33.3 },
+          { id: 10, name: 'Cognizant Capital Dynamic',     deals: 5,  ret: 1.08,   win: 40.0 },
+          { id: 11, name: 'Compact Structure Fund',        deals: 6,  ret: -2.61,  win: 33.3 },
+          { id: 23, name: 'INTI Capital',                  deals: 8,  ret: -5.28,  win: 37.5 },
+          { id: 58, name: 'Sunrise Investment Trust',      deals: 13, ret: -16.31, win: 30.8 }
+        ]
+      }
+    ];
+
+    let rfChartInstance = null;
+
+    function renderRandomForestModule() {
+      const ctx = document.getElementById('rf-importance-chart');
+      if (ctx) {
+        if (rfChartInstance) rfChartInstance.destroy();
+        rfChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: rfFeatureImportanceData.map(d => d.feature),
+            datasets: [
+              {
+                label: 'Prediction Accuracy Impact (%IncMSE)',
+                data: rfFeatureImportanceData.map(d => d.incMSE),
+                backgroundColor: '#0F172A',
+                borderColor: '#D4AF37',
+                borderWidth: 1.5
+              },
+              {
+                label: 'Regime Splitting Power (Node Purity / 15)',
+                data: rfFeatureImportanceData.map(d => +(d.incNodePurity / 15).toFixed(2)),
+                backgroundColor: '#2563EB',
+                borderColor: '#1D4ED8',
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { font: { size: 11, weight: '600' }, color: '#0F172A' }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: '#E2E8F0' },
+                title: { display: true, text: 'Relative Factor Importance Score', font: { weight: '700', size: 11 } }
+              },
+              y: {
+                grid: { display: false },
+                ticks: { font: { weight: '700', size: 11.5 }, color: '#0F172A' }
+              }
+            }
+          }
+        });
+      }
+
+      const tbody = document.getElementById('rf-importance-tbody');
+      if (tbody) {
+        tbody.innerHTML = rfFeatureImportanceData.map(d => {
+          const msePctWidth = Math.max(4, Math.min(100, (Math.max(0, d.incMSE) / 6.0) * 100));
+          const purityPctWidth = Math.max(4, Math.min(100, (d.incNodePurity / 100.0) * 100));
+          return `
+            <tr>
+              <td class="col-sno">${d.rank}</td>
+              <td class="text-left" style="font-weight:700;">${d.feature}</td>
+              <td class="text-right">
+                <div class="meter-cell">
+                  <span class="${d.incMSE > 0 ? 'ret-green' : 'ret-muted'}">${d.incMSE > 0 ? '+' : ''}${d.incMSE.toFixed(2)}%</span>
+                  <span class="meter-track"><div class="meter-fill-navy" style="width:${msePctWidth}%;"></div></span>
+                </div>
+              </td>
+              <td class="text-right">
+                <div class="meter-cell">
+                  <span style="font-weight:600;">${d.incNodePurity.toFixed(1)}</span>
+                  <span class="meter-track"><div class="meter-fill-royal" style="width:${purityPctWidth}%;"></div></span>
+                </div>
+              </td>
+              <td class="text-left" style="font-size:11.5px; color:#334155;">${d.role}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    function renderKMeansClusters() {
+      const container = document.getElementById('kmeans-4col-container');
+      if (!container) return;
+      const rawQuery = (document.getElementById('kmeans-search')?.value || '').trim();
+      const q = rawQuery.toLowerCase();
+
+      container.innerHTML = kMeansArchetypesData.map(group => {
+        const filteredFunds = group.funds.filter(f => !q || f.name.toLowerCase().includes(q) || String(f.id) === q);
+        const meanRet = filteredFunds.length
+          ? filteredFunds.reduce((s, x) => s + x.ret, 0) / filteredFunds.length
+          : 0;
+        const meanWin = filteredFunds.length
+          ? filteredFunds.reduce((s, x) => s + x.win, 0) / filteredFunds.length
+          : 0;
+
+        return `
+          <div class="cluster-col">
+            <div class="cluster-col-header">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; font-size:12.5px; color:var(--gold-500);">${group.archetype}</span>
+                <span class="${group.badgeClass}">${filteredFunds.length} Funds</span>
+              </div>
+              <div style="font-size:11px; color:#CBD5E1; margin-top:2px;">${group.subtitle}</div>
+            </div>
+            <div class="cluster-col-meta mono">
+              <span>Mean Ret: <strong style="color:${meanRet >= 0 ? '#16A34A' : '#DC2626'};">${meanRet >= 0 ? '+' : ''}${meanRet.toFixed(1)}%</strong></span>
+              <span>Mean Win: <strong>${meanWin.toFixed(1)}%</strong></span>
+            </div>
+            <div class="cluster-fund-list">
+              ${filteredFunds.map(f => `
+                <div class="cluster-fund-item" onclick="openIntersectionQuery('${f.name.replace(/'/g, "\\'")}', 'ALL')" title="Click to inspect ${f.name} in Performance Tool">
+                  <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:62%;">
+                    <span class="mono" style="color:#64748B; font-size:10.5px; margin-right:4px;">#${f.id}</span>
+                    <span class="entity-link">${highlightMatch(f.name, rawQuery)}</span>
+                  </div>
+                  <div class="mono" style="font-size:11px; text-align:right;">
+                    <span style="color:#475569;">${f.deals}d</span> ·
+                    <span style="color:${f.ret >= 0 ? '#16A34A' : '#DC2626'}; font-weight:700;">${f.ret >= 0 ? '+' : ''}${f.ret.toFixed(0)}%</span>
+                    <span style="color:#64748B;">(${f.win.toFixed(0)}%)</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 14. PAGE 12: TRIPARTITE GOLDEN SYNDICATE MATRIX (MODEL E)
+    // =========================================================================
+    const tripartiteModelEData = [
+      { rank: 1,  brlm: 'Hem Securities Limited', anchor: 'Aarth AIF', sector: 'Electrical Equipment', alphaPct: 623.04, se: 1.7331, tStat: 3.595, pVal: 0.00153, sig: 'Statistically Significant (p < 0.01) **', tier: 'GOLDEN' },
+      { rank: 2,  brlm: 'Hem Securities Limited', anchor: 'Finavenue Capital Trust', sector: 'Electrical Equipment', alphaPct: 623.04, se: 1.7331, tStat: 3.595, pVal: 0.00153, sig: 'Statistically Significant (p < 0.01) **', tier: 'GOLDEN' },
+      { rank: 3,  brlm: 'Hem Securities Limited', anchor: 'India Max Investment', sector: 'Electrical Equipment', alphaPct: 623.04, se: 1.7331, tStat: 3.595, pVal: 0.00153, sig: 'Statistically Significant (p < 0.01) **', tier: 'GOLDEN' },
+      { rank: 4,  brlm: 'Hem Securities Limited', anchor: 'Shine Star Build-Cap', sector: 'Electrical Equipment', alphaPct: 623.04, se: 1.7331, tStat: 3.595, pVal: 0.00153, sig: 'Statistically Significant (p < 0.01) **', tier: 'GOLDEN' },
+      { rank: 5,  brlm: 'Hem Securities Limited', anchor: 'Bharat Venture Opportunities Fund', sector: 'Industrial Engineering', alphaPct: 488.10, se: 1.4881, tStat: 3.280, pVal: 0.00328, sig: 'Statistically Significant (p < 0.01) **', tier: 'GOLDEN' },
+      { rank: 6,  brlm: 'Hem Securities Limited', anchor: 'Sanshi Fund I', sector: 'Industrial Engineering', alphaPct: 488.10, se: 1.4881, tStat: 3.280, pVal: 0.00328, sig: 'Statistically Significant (p < 0.01) **', tier: 'GOLDEN' },
+      { rank: 7,  brlm: 'Hem Securities Limited', anchor: 'Vikasa India EIF', sector: 'IT Services', alphaPct: 322.64, se: 1.5633, tStat: 2.064, pVal: 0.05049, sig: 'Marginally Significant (p < 0.10) .', tier: 'GOLDEN' },
+      { rank: 8,  brlm: 'GYR Capital Advisors Private Limited', anchor: 'VBCube Ventures', sector: 'Flavours & Fragrances', alphaPct: 187.48, se: 1.4934, tStat: 1.255, pVal: 0.22193, sig: 'Directional / Not Sig. (p > 0.10)', tier: 'NEUTRAL' },
+      { rank: 9,  brlm: 'Vivro Financial Services Private Limited', anchor: '31 Degrees North', sector: 'Hotels & Hospitality', alphaPct: -7.94, se: 1.4927, tStat: -0.053, pVal: 0.95806, sig: 'Market Noise (p > 0.90)', tier: 'NEUTRAL' },
+      { rank: 10, brlm: 'Beeline Capital Advisors Private Limited', anchor: 'Craft Emerging Market Fund', sector: 'Petrochemicals & Specialty Chemicals', alphaPct: -35.51, se: 1.4869, tStat: -0.239, pVal: 0.81337, sig: 'Market Noise (p > 0.80)', tier: 'NEUTRAL' },
+      { rank: 11, brlm: 'Narnolia Financial Services Limited', anchor: 'Craft Emerging Market Fund', sector: 'Food Products', alphaPct: -243.78, se: 1.3673, tStat: -1.783, pVal: 0.08780, sig: 'Marginally Significant Drag (p < 0.10) .', tier: 'DRAG' },
+      { rank: 12, brlm: 'GYR Capital Advisors Private Limited', anchor: 'Vikasa India EIF', sector: 'IT Services', alphaPct: -315.82, se: 1.4565, tStat: -2.168, pVal: 0.04072, sig: 'Statistically Significant Drag (p < 0.05) *', tier: 'DRAG' },
+      { rank: 13, brlm: 'Marwadi Chandarana Intermediaries Brokers Private Limited', anchor: 'Saint Capital Fund', sector: 'Textiles', alphaPct: -340.44, se: 1.5893, tStat: -2.142, pVal: 0.04301, sig: 'Statistically Significant Drag (p < 0.05) *', tier: 'DRAG' },
+      { rank: 14, brlm: 'Jawa Capital Services Private Limited', anchor: 'Finavenue Capital Trust', sector: 'Pharmaceuticals', alphaPct: -376.97, se: 1.5872, tStat: -2.375, pVal: 0.02627, sig: 'Statistically Significant Drag (p < 0.05) *', tier: 'DRAG' },
+      { rank: 15, brlm: 'Rarever Financial Advisors Private Limited', anchor: 'WhiteOak Capital', sector: 'Packaging Materials', alphaPct: -378.70, se: 1.4361, tStat: -2.637, pVal: 0.01473, sig: 'Statistically Significant Drag (p < 0.05) *', tier: 'DRAG' },
+      { rank: 16, brlm: 'Narnolia Financial Services Limited', anchor: 'WhiteOak Capital', sector: 'Education Technology', alphaPct: -379.76, se: 1.4250, tStat: -2.665, pVal: 0.01384, sig: 'Statistically Significant Drag (p < 0.05) *', tier: 'DRAG' },
+      { rank: 17, brlm: 'Nexgen Financial Solutions Private Limited', anchor: 'SB Opportunities Fund', sector: 'Industrial Products', alphaPct: -403.03, se: 1.5456, tStat: -2.608, pVal: 0.01574, sig: 'Statistically Significant Drag (p < 0.05) *', tier: 'DRAG' },
+      { rank: 18, brlm: 'Smart Horizon Capital Advisors Private Limited', anchor: 'SB Opportunities Fund', sector: 'Electronics & Industrial Technology', alphaPct: -458.15, se: 1.5782, tStat: -2.903, pVal: 0.00802, sig: 'Statistically Significant Drag (p < 0.01) **', tier: 'DRAG' },
+      { rank: 19, brlm: 'GYR Capital Advisors Private Limited', anchor: 'Vikasa India EIF', sector: 'Electrical Equipment', alphaPct: -513.80, se: 1.6356, tStat: -3.141, pVal: 0.00457, sig: 'Statistically Significant Drag (p < 0.01) **', tier: 'DRAG' }
+    ];
+
+    let showTripartiteAcademicStats = false;
+
+    function toggleTripartiteStats() {
+      showTripartiteAcademicStats = !showTripartiteAcademicStats;
+      const btn = document.getElementById('btn-toggle-tri-stats');
+      if (btn) {
+        btn.classList.toggle('active', showTripartiteAcademicStats);
+        btn.textContent = showTripartiteAcademicStats
+          ? 'Hide Academic Stats (SE / t-Stat)'
+          : 'Show Academic Stats (SE / t-Stat)';
+      }
+      renderTripartiteMatrix();
+    }
+
+    function renderTripartiteMatrix() {
+      const thead = document.getElementById('tripartite-thead');
+      const tbody = document.getElementById('tripartite-tbody');
+      if (!tbody || !thead) return;
+
+      thead.innerHTML = `
+        <tr>
+          <th class="col-sno">#</th>
+          <th class="text-left col-sticky-name">BRLM (Lead Manager)</th>
+          <th class="text-left">Anchor Fund Partner</th>
+          <th class="text-left">Target Sector</th>
+          <th class="text-right">
+            Excess Syndicate Alpha (β %)
+            <span class="q-tip" data-tip="Adjusted Excess Return (β %): The net percentage outperformance generated when this exact BRLM, Anchor, and Sector align, holding issue size constant.">ⓘ</span>
+          </th>
+          ${showTripartiteAcademicStats ? `
+            <th class="text-right">Std. Error</th>
+            <th class="text-right">t-Statistic</th>
+          ` : ''}
+          <th class="text-right">
+            Confidence (p-val)
+            <span class="q-tip" data-tip="p-value measures statistical certainty. A p-value below 0.01 (99% confidence) means the syndicate's outperformance is virtually impossible to be random luck.">ⓘ</span>
+          </th>
+          <th class="text-left">Executive Conviction Tier</th>
+        </tr>
+      `;
+
+      const rawQuery = (document.getElementById('tripartite-search')?.value || '').trim();
+      const q = rawQuery.toLowerCase();
+      const tierFilter = document.getElementById('tripartite-tier-filter')?.value || 'ALL';
+
+      const rows = tripartiteModelEData.filter(item => {
+        if (tierFilter !== 'ALL' && item.tier !== tierFilter) return false;
+        if (q && !`${item.brlm} ${item.anchor} ${item.sector} ${item.sig}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      tbody.innerHTML = rows.map((r, idx) => {
+        const barWidth = Math.min(100, Math.round((Math.abs(r.alphaPct) / 625) * 100));
+        const barClass = r.alphaPct >= 0 ? 'meter-fill-green' : 'meter-fill-red';
+        const sign = r.alphaPct > 0 ? '+' : '';
+        const confidencePct = ((1 - r.pVal) * 100).toFixed(1);
+
+        let badgeHtml = '';
+        if (r.tier === 'GOLDEN') {
+          badgeHtml = `<span class="gold-pill">★ Tier-1 Golden Syndicate</span> <span style="font-size:11px; color:#334155; margin-left:6px;">${confidencePct}% Confidence</span>`;
+        } else if (r.tier === 'DRAG') {
+          badgeHtml = `<span class="drag-pill">⚠️ Severe Syndicate Drag</span> <span style="font-size:11px; color:#64748B; margin-left:6px;">Avoid Allocation</span>`;
+        } else {
+          badgeHtml = `<span class="royal-pill">Market Neutral</span> <span style="font-size:11px; color:#64748B; margin-left:6px;">No Stat. Edge</span>`;
+        }
+
+        return `
+          <tr>
+            <td class="col-sno">${idx + 1}</td>
+            <td class="text-left col-sticky-name">
+              <span onclick="openIntersectionQuery('ALL', '${r.brlm.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(r.brlm, rawQuery)}</span>
+            </td>
+            <td class="text-left">
+              <span onclick="openIntersectionQuery('${r.anchor.replace(/'/g, "\\'")}', 'ALL')" class="entity-link">${highlightMatch(r.anchor, rawQuery)}</span>
+            </td>
+            <td class="text-left">
+              <span onclick="filterMainBySector('${r.sector.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(r.sector, rawQuery)}</span>
+            </td>
+            <td class="text-right">
+              <div class="meter-cell">
+                <span class="${r.alphaPct >= 0 ? 'ret-green' : 'ret-red'}">${sign}${r.alphaPct.toFixed(1)}%</span>
+                <span class="meter-track"><div class="${barClass}" style="width:${barWidth}%;"></div></span>
+              </div>
+            </td>
+            ${showTripartiteAcademicStats ? `
+              <td class="text-right">${r.se.toFixed(3)}</td>
+              <td class="text-right ${r.tStat >= 0 ? 'ret-green' : 'ret-red'}">${r.tStat >= 0 ? '+' : ''}${r.tStat.toFixed(2)}</td>
+            ` : ''}
+            <td class="text-right">${r.pVal < 0.01 ? '<strong style="color:#16A34A;">' + r.pVal.toFixed(4) + ' **</strong>' : r.pVal.toFixed(4)}</td>
+            <td class="text-left">${badgeHtml}</td>
+          </tr>
+        `;
+      }).join('');
+
+      syncTopScrollbarWidths();
+    }
+
+    // =========================================================================
+    // 15. MASTER NAVIGATION & AUTOMATED SINGLE-REQUEST STARTUP
+    // =========================================================================
+    function switchPage(pageId) {
+      const pages = [
+        'main',
+        'perf',
+        'anchor-lb',
+        'brlm-lb',
+        'sector-lb',
+        'brlm-anchor-matrix',
+        'anchor-syndicate',
+        'network-map',
+        'model-d',
+        'model-f',
+        'models-gh',
+        'model-e'
+      ];
+      pages.forEach(id => {
+        const pageEl = document.getElementById(`page-${id}`);
+        const navEl = document.getElementById(`nav-${id}`);
+        if (pageEl) pageEl.classList.toggle('hidden', id !== pageId);
+        if (navEl) navEl.classList.toggle('active', id === pageId);
+      });
+
+      syncTopScrollbarWidths();
+
+      if (pageId === 'network-map') {
+        buildAndRenderNetworkGraph();
+      } else if (pageId === 'model-f') {
+        renderKaplanMeierModule();
+      } else if (pageId === 'models-gh') {
+        renderRandomForestModule();
+      }
+    }
+
+    function refreshAllViews() {
+      initMainDatabaseFilters();
+      renderMainDatabase();
+      populateIntersectionDropdowns(true);
+      populateMultiAnchorOptions();
+      renderMultiAnchorTags();
+      renderPerformanceTool();
+      renderAnchorLeaderboard();
+      renderBrlmLeaderboard();
+      renderSectorLeaderboard();
+      renderBrlmAnchorMatrix();
+      renderAnchorSyndicateLeaderboard();
+      buildAndRenderNetworkGraph();
+      updateMultibaggerCalculator();
+      renderKaplanMeierModule();
+      renderRandomForestModule();
+      renderKMeansClusters();
+      renderTripartiteMatrix();
+      syncTopScrollbarWidths();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initTopScrollbars();
+      initNetworkCanvasInteractions();
+      fetchAndLoadMasterXLSX();
+    });
+  </script>
+</body>
+</html>
