@@ -1,20 +1,15 @@
-# Performance tool and leaderboards
+   # Performance tool
 
-The tool is built into the master database workbook: `01_database/SME_IPO_Database_v8.xlsx` (sheets named below).
+   ## Web version: performance_tool.html
+   SME IPO Institutional Performance Calculator and Master Deal Tape. Download the file and double-click to open it in a browser.
+   - Tab 1: Anchor / BRLM Performance Calculator
+   - Tab 2: Main Database, the full SME IPO deal tape with rupee day-closes
+   - Show returns (%), rupee day-closes, or both; sort, filter by sector and BRLM, search, export CSV
+   - Click a company for its price trajectory; click a BRLM or anchor to open the calculator
+   - Upload an .xlsx file to load the full database (the page ships with a smaller built-in dataset)
 
-## Anchor / BRLM Performance Calculator
-Sheet: `Perfomance Calculation_Tool`
-- Pick Anchor 1 (required), optionally Anchor 2 (co-investment pair), and optionally a BRLM from the dropdowns.
-- Leave Anchor 1 blank and pick only a BRLM to see that BRLM's full track record.
-- The summary shows the number of IPOs matched, average returns at Day 1, 7, 30, 35 and later, the number of winning companies, and the top 3 performers.
+   ## Spreadsheet version
+   The same tool also exists inside `01_database/SME_IPO_Database_v8.xlsx` (sheet `Perfomance Calculation_Tool`) plus the leaderboard sheets. It was built in Google Sheets, so open it there for the dropdowns and formulas to work live.
 
-## Leaderboards
-Each sheet ranks by average since-listing return and shows total IPOs, win rate, IPOs with 100-day data, average 100-day return and 100-day win rate, against a benchmark row:
-- `Anchor_Leaderboard`: anchors
-- `BRLM_Leaderboard`: BRLMs (companies with anchor data only)
-- `Sector_Leaderboard`: sectors
-- `Anchor_BRLM_Leaderboard`: anchor and BRLM pairs
-- `Anchor_Anchor_Leaderboard`: anchors that invest together
-
-## Note
-The workbook was built in Google Sheets. The dropdown tool and leaderboards use Google Sheets formulas (FILTER, LET), so open the file in Google Sheets for it to work live. In Excel you may only see the last saved values.
+   ## Extended version
+   The SMEQuant web terminal in `05_web_html` adds the leaderboards, network map and statistical models.
