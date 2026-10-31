@@ -1,0 +1,2430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SME IPO Performance Calculator & Deal Tape Terminal</title>
+  <!-- PapaParse 5.4.1 for Sequential Google Sheets Live CSV Sync -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- SheetJS for .XLSX Workbook Parsing & Manual Upload Fallback -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <!-- Chart.js 4.4.1 for Interactive Company Day-Close & Return Trajectory Modal -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    /* =====================================================================
+       1. INSTITUTIONAL QUANT TERMINAL THEME
+       Palette: Deep Navy (#0F172A) | Pure White (#FFFFFF) | Royal Blue (#2563EB) | Gold (#D4AF37)
+       Typography: macOS SF Pro Text / Display + SF Mono (tabular-nums)
+       ===================================================================== */
+    :root {
+      --navy-950: #090E1A;
+      --navy-900: #0F172A;
+      --navy-800: #1E293B;
+      --navy-700: #334155;
+      --royal-600: #2563EB;
+      --royal-700: #1D4ED8;
+      --royal-50:  #EFF6FF;
+      --gold-500:  #D4AF37;
+      --gold-600:  #B5902B;
+      --gold-100:  #FEF9E7;
+      --gold-border: #E5C158;
+      --pure-white: #FFFFFF;
+      --slate-50:  #F8FAFC;
+      --slate-100: #F1F5F9;
+      --slate-200: #E2E8F0;
+      --slate-300: #CBD5E1;
+      --slate-500: #64748B;
+      --slate-700: #334155;
+      --emerald-600: #16A34A;
+      --crimson-600: #DC2626;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      border-radius: 0 !important;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--slate-50);
+      color: var(--navy-900);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif;
+      font-size: 12.5px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .mono {
+      font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* =====================================================================
+       2. FULL-SCREEN DEEP NAVY & GOLD LOADING OVERLAY
+       ===================================================================== */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background-color: var(--navy-900);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+
+    .loading-overlay.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .gold-spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(212, 175, 55, 0.2);
+      border-top-color: var(--gold-500);
+      border-radius: 50% !important;
+      animation: quantSpin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes quantSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-title {
+      color: var(--pure-white);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 6px;
+    }
+
+    .loading-subtitle {
+      color: var(--gold-500);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* =====================================================================
+       3. DEEP NAVY EXECUTIVE HEADER & 2-TAB NAVIGATION BAR
+       ===================================================================== */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--navy-900);
+      color: var(--pure-white);
+      border-bottom: 2px solid var(--gold-500);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    }
+
+    .header-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--navy-800);
+      gap: 12px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand-badge {
+      background-color: var(--gold-500);
+      color: var(--navy-900);
+      font-weight: 800;
+      font-size: 11px;
+      padding: 3px 8px;
+      letter-spacing: 0.06em;
+      border: 1px solid var(--gold-border);
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--pure-white);
+      letter-spacing: -0.01em;
+    }
+
+    .header-right-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .feed-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background-color: var(--navy-950);
+      border: 1px solid var(--navy-700);
+      padding: 4px 10px;
+      font-size: 11px;
+      color: #CBD5E1;
+      font-weight: 600;
+      height: 26px;
+    }
+
+    .feed-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50% !important;
+      background-color: #4ADE80;
+      display: inline-block;
+    }
+
+    .header-upload-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: var(--navy-950);
+      color: #94A3B8;
+      border: 1px solid var(--navy-700);
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      height: 26px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .header-upload-btn:hover {
+      color: var(--gold-500);
+      border-color: var(--gold-500);
+      background-color: var(--navy-800);
+    }
+
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      background-color: var(--navy-950);
+    }
+
+    .nav-tab {
+      padding: 11px 20px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #94A3B8;
+      background-color: transparent;
+      border: none;
+      border-right: 1px solid var(--navy-800);
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .nav-tab:hover {
+      color: var(--pure-white);
+      background-color: var(--navy-800);
+    }
+
+    .nav-tab.active {
+      color: var(--gold-500);
+      background-color: var(--navy-900);
+      border-bottom: 3px solid var(--gold-500);
+    }
+
+    /* =====================================================================
+       4. WORKSPACE PANELS, 3-DROPDOWN CALCULATOR & KPI GRIDS
+       ===================================================================== */
+    .workspace {
+      width: 100%;
+      max-width: 1760px;
+      margin: 0 auto;
+      padding: 14px 18px 40px 18px;
+    }
+
+    .panel-card {
+      border: 1px solid var(--slate-200);
+      background-color: var(--pure-white);
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+
+    .panel-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--slate-200);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      gap: 10px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--navy-900);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gold-pill {
+      background-color: var(--gold-100);
+      color: #785C12;
+      border: 1px solid var(--gold-500);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    .royal-pill {
+      background-color: var(--royal-50);
+      color: var(--royal-600);
+      border: 1px solid #BFDBFE;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    /* 3-Dropdown Calculator Grid */
+    .calc-selectors-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      align-items: end;
+    }
+
+    @media (max-width: 1024px) {
+      .calc-selectors-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .selector-box {
+      background-color: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-top: 3px solid var(--navy-900);
+      padding: 10px 12px;
+    }
+
+    .selector-box.gold-top {
+      border-top-color: var(--gold-500);
+    }
+
+    .selector-box.royal-top {
+      border-top-color: var(--royal-600);
+    }
+
+    .field-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--navy-900);
+      letter-spacing: 0.03em;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .selector-inputs {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ui-input, .ui-select {
+      background-color: var(--pure-white);
+      border: 1px solid var(--slate-300);
+      color: var(--navy-900);
+      padding: 4px 9px;
+      font-size: 12px;
+      height: 31px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .ui-input:focus, .ui-select:focus {
+      border-color: var(--royal-600);
+    }
+
+    .ui-btn {
+      background-color: var(--royal-600);
+      color: var(--pure-white);
+      border: 1px solid var(--royal-700);
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      height: 31px;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .ui-btn:hover {
+      background-color: var(--royal-700);
+    }
+
+    .ui-btn-outline {
+      background-color: var(--pure-white);
+      color: var(--navy-900);
+      border: 1px solid var(--slate-300);
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      height: 31px;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .ui-btn-outline:hover {
+      background-color: var(--slate-100);
+    }
+
+    .ui-btn-outline.active {
+      background-color: var(--navy-900);
+      color: var(--gold-500);
+      border-color: var(--navy-900);
+    }
+
+    /* Executive Summary Top KPI Strip */
+    .summary-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 960px) {
+      .summary-kpi-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .kpi-card {
+      background-color: var(--navy-900);
+      color: var(--pure-white);
+      border: 1px solid var(--navy-800);
+      border-left: 4px solid var(--gold-500);
+      padding: 12px 14px;
+    }
+
+    .kpi-card.royal-border {
+      border-left-color: var(--royal-600);
+    }
+
+    .kpi-label {
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #94A3B8;
+      font-weight: 700;
+    }
+
+    .kpi-val {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--gold-500);
+      margin-top: 3px;
+      line-height: 1.15;
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: #CBD5E1;
+      margin-top: 3px;
+    }
+
+    /* Horizontal 10-Horizon Quick Strip */
+    .horizon-strip-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 1200px) {
+      .horizon-strip-grid {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+
+    .horizon-pill-card {
+      border: 1px solid var(--slate-200);
+      background-color: var(--slate-50);
+      padding: 8px 8px;
+      text-align: center;
+    }
+
+    .horizon-pill-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--slate-700);
+      text-transform: uppercase;
+    }
+
+    .horizon-pill-ret {
+      font-size: 14px;
+      font-weight: 800;
+      margin: 3px 0 2px 0;
+    }
+
+    .horizon-pill-wins {
+      font-size: 10.5px;
+      color: var(--slate-500);
+      font-weight: 600;
+    }
+
+    /* =====================================================================
+       5. TOP HORIZONTAL SCROLLBAR, STICKY HEADERS & TABLES
+       ===================================================================== */
+    .top-scroll-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--navy-900);
+      color: #CBD5E1;
+      border: 1px solid var(--navy-800);
+      border-bottom: none;
+      padding: 5px 12px;
+      font-size: 11px;
+    }
+
+    .top-scrollbar-rail {
+      width: 100%;
+      height: 15px;
+      overflow-x: scroll;
+      overflow-y: hidden;
+      background-color: var(--slate-100);
+      border: 1px solid var(--slate-300);
+      border-bottom: none;
+    }
+
+    .top-scrollbar-rail::-webkit-scrollbar {
+      height: 13px;
+      -webkit-appearance: none;
+    }
+
+    .top-scrollbar-rail::-webkit-scrollbar-track {
+      background-color: var(--slate-200);
+    }
+
+    .top-scrollbar-rail::-webkit-scrollbar-thumb {
+      background-color: var(--navy-700);
+      border: 2px solid var(--slate-200);
+    }
+
+    .top-scrollbar-rail::-webkit-scrollbar-thumb:hover {
+      background-color: var(--royal-600);
+    }
+
+    .top-scrollbar-spacer {
+      height: 1px;
+    }
+
+    .table-viewport {
+      width: 100%;
+      max-height: 72vh;
+      overflow-x: auto;
+      overflow-y: auto;
+      background-color: var(--pure-white);
+      border: 1px solid var(--slate-200);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+      scrollbar-width: thin;
+    }
+
+    table.fin-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background-color: var(--pure-white);
+    }
+
+    table.fin-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background-color: var(--navy-900);
+      color: var(--pure-white);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 8px 10px;
+      border-bottom: 2px solid var(--gold-500);
+      border-right: 1px solid var(--navy-800);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    table.fin-table td {
+      padding: 6.5px 10px;
+      border-bottom: 1px solid var(--slate-200);
+      border-right: 1px solid var(--slate-200);
+      color: var(--navy-900);
+      background-color: var(--pure-white);
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    table.fin-table tbody tr:nth-child(even) td {
+      background-color: var(--slate-50);
+    }
+
+    table.fin-table tbody tr:hover td {
+      background-color: var(--royal-50) !important;
+    }
+
+    .col-sno {
+      position: sticky;
+      left: 0;
+      width: 44px;
+      min-width: 44px;
+      max-width: 44px;
+      z-index: 15;
+      text-align: right !important;
+      color: var(--slate-500) !important;
+      font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-variant-numeric: tabular-nums;
+      background-color: var(--pure-white);
+    }
+
+    table.fin-table thead th.col-sno {
+      position: sticky;
+      top: 0;
+      left: 0;
+      z-index: 35 !important;
+      background-color: var(--navy-950) !important;
+      color: var(--gold-500) !important;
+    }
+
+    .col-sticky-name {
+      position: sticky;
+      left: 44px;
+      z-index: 15;
+      border-right: 2px solid var(--slate-300) !important;
+      background-color: var(--pure-white);
+      font-weight: 600;
+    }
+
+    table.fin-table thead th.col-sticky-name {
+      position: sticky;
+      top: 0;
+      left: 44px;
+      z-index: 35 !important;
+      background-color: var(--navy-900) !important;
+    }
+
+    table.fin-table th.col-anchor-wrap,
+    table.fin-table td.col-anchor-wrap {
+      max-width: 340px !important;
+      min-width: 240px !important;
+      width: 340px !important;
+      white-space: normal !important;
+      word-wrap: break-word;
+      line-height: 1.45;
+      vertical-align: top;
+    }
+
+    table.fin-table thead th[data-sort-key] {
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+    }
+    table.fin-table thead th[data-sort-key]:hover {
+      background-color: var(--navy-800) !important;
+    }
+    table.fin-table thead th[data-sort-key]::after {
+      content: ' ⇅';
+      font-size: 10px;
+      color: #64748B;
+      margin-left: 4px;
+      font-weight: 400;
+    }
+    table.fin-table thead th[data-sort-key].sort-asc::after {
+      content: ' ▲';
+      color: var(--gold-500);
+      font-weight: 800;
+    }
+    table.fin-table thead th[data-sort-key].sort-desc::after {
+      content: ' ▼';
+      color: var(--gold-500);
+      font-weight: 800;
+    }
+
+    mark.search-hl {
+      background-color: #FEF08A !important;
+      color: #0F172A !important;
+      padding: 0 2px;
+      font-weight: 700;
+      border-bottom: 1px solid #CA8A04;
+    }
+
+    .text-left { text-align: left !important; }
+    .text-right {
+      text-align: right !important;
+      font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+    }
+
+    .ret-green { color: var(--emerald-600) !important; font-weight: 600 !important; }
+    .ret-red   { color: var(--crimson-600) !important; font-weight: 600 !important; }
+    .ret-muted { color: var(--slate-500) !important; }
+    .price-cell { color: var(--navy-900) !important; font-weight: 600; background-color: #F8FAFC; }
+
+    .company-link {
+      color: var(--navy-900);
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: var(--gold-500);
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+    .company-link:hover {
+      color: var(--royal-600);
+      text-decoration-color: var(--royal-600);
+    }
+
+    .entity-link {
+      color: var(--navy-900);
+      text-decoration: underline;
+      text-decoration-color: var(--royal-600);
+      text-underline-offset: 2px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .entity-link:hover {
+      color: var(--royal-600);
+    }
+
+    /* =====================================================================
+       6. INTERACTIVE SLIDE-OVER DRAWER / MODAL FOR DAY-CLOSE TRAJECTORIES
+       ===================================================================== */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background-color: rgba(9, 14, 26, 0.65);
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .drawer-panel {
+      width: 100%;
+      max-width: 1180px;
+      height: 100vh;
+      background-color: var(--pure-white);
+      border-left: 3px solid var(--gold-500);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: -8px 0 28px rgba(9, 14, 26, 0.35) !important;
+    }
+
+    .drawer-header {
+      background-color: var(--navy-900);
+      color: var(--pure-white);
+      padding: 14px 20px;
+      border-bottom: 2px solid var(--gold-500);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 20px 32px 20px;
+      background-color: var(--slate-50);
+    }
+
+    .drawer-close-btn {
+      background-color: var(--gold-500);
+      color: var(--navy-900);
+      border: 1px solid var(--gold-border);
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .drawer-close-btn:hover {
+      background-color: #E5C158;
+    }
+
+    .milestone-grid {
+      display: grid;
+      grid-template-columns: repeat(11, 1fr);
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 1100px) {
+      .milestone-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .milestone-card {
+      background-color: var(--pure-white);
+      border: 1px solid var(--slate-200);
+      border-top: 3px solid var(--navy-900);
+      padding: 8px 8px;
+      text-align: center;
+    }
+    .milestone-card.gold-top {
+      border-top-color: var(--gold-500);
+      background-color: #FFFEF9;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================================== -->
+  <!-- FULL-SCREEN DEEP NAVY & GOLD LOADING OVERLAY                          -->
+  <!-- ===================================================================== -->
+  <div id="app-loading-overlay" class="loading-overlay">
+    <div class="gold-spinner"></div>
+    <div class="loading-title">Initializing SME IPO Performance Calculator &amp; Deal Tape...</div>
+    <div class="loading-subtitle mono">Syncing Main Database &amp; Anchor/BRLM Feeder</div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- PERSISTENT TOP HEADER & 2-TAB NAVIGATION BAR                          -->
+  <!-- ===================================================================== -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="brand-group">
+        <span class="brand-badge mono">SME-TERMINAL</span>
+        <span class="brand-title">SME IPO Institutional Performance Calculator &amp; Master Deal Tape</span>
+      </div>
+      <div class="header-right-group mono">
+        <div class="feed-badge">
+          <span class="feed-dot" id="feed-status-dot"></span>
+          <span id="status-bar">Connecting to Live Google Sheet...</span>
+        </div>
+        <label class="header-upload-btn" title="Upload .XLSX Workbook">
+          <span>⬆ Upload .XLSX</span>
+          <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleExcelUpload(event)" />
+        </label>
+      </div>
+    </div>
+
+    <!-- Dedicated 2-Tab Navigation Bar -->
+    <nav class="nav-bar">
+      <button onclick="switchPage('calc')" id="nav-calc" class="nav-tab active">
+        1. Anchor / BRLM Performance Calculator
+      </button>
+      <button onclick="switchPage('main')" id="nav-main" class="nav-tab">
+        2. Main Database (Full SME IPO Deal Tape &amp; Rupee Day Closes)
+      </button>
+    </nav>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN WORKSPACE                                                        -->
+  <!-- ===================================================================== -->
+  <main class="workspace">
+
+    <!-- =================================================================== -->
+    <!-- TAB 1: ANCHOR / BRLM PERFORMANCE CALCULATOR (DEFAULT LANDING VIEW)  -->
+    <!-- =================================================================== -->
+    <section id="page-calc">
+
+      <!-- 1A. EXACT 3-DROPDOWN CONTROL PANEL (MIRRORING SPREADSHEET TOOL) -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">
+              <span>Anchor / BRLM Performance Calculator</span>
+              <span class="gold-pill">Interactive Co-Investment &amp; Mandate Query Engine</span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--slate-500); margin-top: 3px;">
+              Select Anchor 1 only, BRLM only, Anchor 1 + Anchor 2 (co-investment pair), or Anchor 1 + Anchor 2 + BRLM. Leave all on ALL/NONE to view the entire SME IPO universe.
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button onclick="openCurrentSyndicateDayCloseModal()" class="ui-btn">
+              📊 Open Day-Close (₹) &amp; Horizon Breakdown
+            </button>
+            <button onclick="resetCalculatorSelections()" class="ui-btn-outline">
+              Reset Selection
+            </button>
+            <button onclick="exportTableToCSV('table-calc-matches', 'SME_IPO_Calculator_Matches.csv')" class="ui-btn-outline">
+              ⬇ Export CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="calc-selectors-grid">
+          <!-- Dropdown 1: Select Anchor 1 (Optional / Primary) -->
+          <div class="selector-box gold-top">
+            <div class="field-label">
+              <span>1. Select Anchor 1 (Optional / Primary)</span>
+              <span class="mono" style="color: var(--slate-500); font-size: 10px;" id="count-anchor1-opts">0 Anchors</span>
+            </div>
+            <div class="selector-inputs">
+              <input
+                type="text"
+                id="search-anchor-1"
+                oninput="populateCalculatorDropdowns(false)"
+                placeholder="Search Anchor 1..."
+                class="ui-input"
+                style="width: 135px;"
+              />
+              <select id="select-anchor-1" onchange="renderCalculatorView()" class="ui-select" style="flex: 1; font-weight: 700;"></select>
+            </div>
+          </div>
+
+          <!-- Dropdown 2: Select Anchor 2 (Optional — Co-Investor Pair) -->
+          <div class="selector-box royal-top">
+            <div class="field-label">
+              <span>2. Select Anchor 2 (Optional — Co-Investor Pair)</span>
+              <span class="mono" style="color: var(--slate-500); font-size: 10px;" id="count-anchor2-opts">Co-Invest Filter</span>
+            </div>
+            <div class="selector-inputs">
+              <input
+                type="text"
+                id="search-anchor-2"
+                oninput="populateCalculatorDropdowns(false)"
+                placeholder="Search Anchor 2..."
+                class="ui-input"
+                style="width: 135px;"
+              />
+              <select id="select-anchor-2" onchange="renderCalculatorView()" class="ui-select" style="flex: 1; font-weight: 700;"></select>
+            </div>
+          </div>
+
+          <!-- Dropdown 3: Select BRLM (Optional — Lead Manager) -->
+          <div class="selector-box">
+            <div class="field-label">
+              <span>3. Select BRLM (Optional — Lead Manager)</span>
+              <span class="mono" style="color: var(--slate-500); font-size: 10px;" id="count-brlm-opts">0 BRLMs</span>
+            </div>
+            <div class="selector-inputs">
+              <input
+                type="text"
+                id="search-brlm-calc"
+                oninput="populateCalculatorDropdowns(false)"
+                placeholder="Search BRLM..."
+                class="ui-input"
+                style="width: 135px;"
+              />
+              <select id="select-brlm-calc" onchange="renderCalculatorView()" class="ui-select" style="flex: 1; font-weight: 700;"></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1B. EXECUTIVE SUMMARY SCORECARD (VERTICAL & HORIZONTAL KPI GRID) -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>Summary for Current Selection</span>
+            <span class="royal-pill" id="calc-active-selection-badge">All Tracked SME IPOs (Full Universe)</span>
+          </div>
+          <span class="mono" style="font-size: 11px; color: var(--slate-500);">
+            Click any Top Performer company name below to launch its Day-Close (₹) &amp; Price Trajectory Modal
+          </span>
+        </div>
+
+        <!-- Top 4 Executive KPI Cards -->
+        <div class="summary-kpi-row" id="calc-top-kpis"></div>
+
+        <!-- Horizontal 10-Horizon Quick Strip -->
+        <div class="horizon-strip-grid" id="calc-horizon-strip"></div>
+
+        <!-- Vertical Spreadsheet-Mirrored Summary Table (With No. of Winning Companies & Top 3 Performers) -->
+        <div class="table-viewport" style="max-height: none;">
+          <table class="fin-table" id="table-calc-summary">
+            <thead>
+              <tr>
+                <th class="text-left" style="width: 220px;">Return Horizon Metric</th>
+                <th class="text-right" style="width: 150px;">Average Return %</th>
+                <th class="text-right" style="width: 190px;">No. of Winning Companies</th>
+                <th class="text-right" style="width: 140px;">Horizon Win Rate %</th>
+                <th class="text-left">Top 3 Performers (Click Company to Open Day-Close Tape)</th>
+              </tr>
+            </thead>
+            <tbody id="calc-summary-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 1C. MATCHING COMPANIES TABLE (current selection) -->
+      <div class="panel-card" style="padding-bottom: 14px;">
+        <div class="panel-header" style="margin-bottom: 10px;">
+          <div class="panel-title">
+            <span>Matching Companies (Current Selection)</span>
+            <span class="gold-pill" id="calc-matches-count-pill">0 Companies</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <input
+              type="text"
+              id="calc-table-search"
+              oninput="renderCalculatorView()"
+              placeholder="Search & highlight inside matched companies..."
+              class="ui-input"
+              style="width: 280px;"
+            />
+            <div style="display: flex; border: 1px solid var(--slate-300);">
+              <button onclick="setCalcTableDisplayMode('PCT')" id="btn-calc-mode-pct" class="ui-btn-outline active">Show: Return %</button>
+              <button onclick="setCalcTableDisplayMode('PRICE')" id="btn-calc-mode-price" class="ui-btn-outline">Show: Rupee Closes (₹)</button>
+              <button onclick="setCalcTableDisplayMode('BOTH')" id="btn-calc-mode-both" class="ui-btn-outline">Show: Both (₹ + %)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="top-scroll-banner">
+          <span><strong>⇄ Horizontal Scrollbar:</strong> Drag below to scroll across all 10 horizons · Click any <strong>Company Name</strong> to shoot up its Day-Close (₹) Modal</span>
+          <span>Click any <strong>Anchor</strong> or <strong>BRLM</strong> tag to load their full Day-Close &amp; Return Breakdown</span>
+        </div>
+        <div class="top-scrollbar-rail" id="top-scroll-calc">
+          <div class="top-scrollbar-spacer" id="top-inner-calc"></div>
+        </div>
+
+        <div class="table-viewport" id="body-scroll-calc">
+          <table class="fin-table" id="table-calc-matches">
+            <thead id="calc-matches-thead"></thead>
+            <tbody id="calc-matches-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TAB 2: MAIN DATABASE (FULL SME IPO DEAL TAPE & RUPEE DAY CLOSES)    -->
+    <!-- =================================================================== -->
+    <section id="page-main" class="hidden">
+      <div class="panel-card" style="padding: 12px 14px;">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
+          <div class="filter-group">
+            <input
+              type="text"
+              id="main-search"
+              oninput="renderMainDatabase()"
+              placeholder="Search & highlight Company, Ticker, BRLM, Anchor, Sector..."
+              class="ui-input"
+              style="width: 280px;"
+            />
+            <select id="main-sector-select" onchange="renderMainDatabase()" class="ui-select" style="width: 180px;">
+              <option value="ALL">All Sectors</option>
+            </select>
+            <select id="main-brlm-select" onchange="renderMainDatabase()" class="ui-select" style="width: 205px;">
+              <option value="ALL">All BRLMs</option>
+            </select>
+            <select id="main-sort-select" onchange="onMainDropdownSortChange()" class="ui-select" style="width: 185px;">
+              <option value="default">Sort: Chronological Order</option>
+              <option value="size-desc">Sort: Issue Size (High → Low)</option>
+              <option value="1d-desc">Sort: 1D Return % (High → Low)</option>
+              <option value="since-desc">Sort: Since Listing % (High → Low)</option>
+            </select>
+            <button onclick="resetMainFilters()" class="ui-btn-outline">Reset</button>
+            <button onclick="exportTableToCSV('table-main', 'SME_IPO_Main_Database.csv')" class="ui-btn-outline">
+              ⬇ Export CSV
+            </button>
+          </div>
+
+          <!-- 3-Way Rupee Day-Close / Return % Toggle -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="display: flex; border: 1px solid var(--slate-300);">
+              <button onclick="setMainDisplayMode('PCT')" id="btn-main-mode-pct" class="ui-btn-outline active">Show: Return %</button>
+              <button onclick="setMainDisplayMode('PRICE')" id="btn-main-mode-price" class="ui-btn-outline">Show: Rupee Day Closes (₹)</button>
+              <button onclick="setMainDisplayMode('BOTH')" id="btn-main-mode-both" class="ui-btn-outline">Show: Both (₹ + %)</button>
+            </div>
+            <span class="mono" style="font-weight: 800; padding-left: 6px;" id="main-row-count">0 IPOs</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="top-scroll-banner">
+        <span><strong>⇄ Horizontal Scrollbar:</strong> Drag below to navigate across all Day Closes (₹) and Return % columns · Click any column header to sort (▲/▼)</span>
+        <span>Click any <strong>Company Name</strong> for its interactive Price Trajectory Modal · Click any <strong>BRLM</strong> or <strong>Anchor</strong> to launch the Calculator</span>
+      </div>
+      <div class="top-scrollbar-rail" id="top-scroll-main">
+        <div class="top-scrollbar-spacer" id="top-inner-main"></div>
+      </div>
+
+      <div class="table-viewport" id="body-scroll-main">
+        <table class="fin-table" id="table-main">
+          <thead id="main-thead"></thead>
+          <tbody id="main-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- INTERACTIVE SLIDE-OVER DRAWER / MODAL (COMPANY & SYNDICATE DAY-CLOSE) -->
+  <!-- ===================================================================== -->
+  <div id="drilldown-drawer" class="drawer-backdrop hidden" onclick="handleBackdropClick(event)">
+    <div class="drawer-panel">
+      <div class="drawer-header">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="brand-badge mono" id="drawer-type-badge">COMPANY TAPE</span>
+            <span style="font-size: 16px; font-weight: 800; color: var(--pure-white);" id="drawer-title">Company Name</span>
+          </div>
+          <div style="font-size: 11.5px; color: #94A3B8; margin-top: 3px;" id="drawer-subtitle">
+            Complete Post-Listing Day-Close Price (₹) &amp; Percentage Return Trajectory
+          </div>
+        </div>
+        <button onclick="closeDrilldownDrawer()" class="drawer-close-btn">✕ Close (ESC)</button>
+      </div>
+      <div class="drawer-body" id="drawer-body-content"></div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. REPRESENTATIVE PRE-BUNDLED DATASET FROM 'SME_IPO_Database_v8 (13).xlsx'
+    //    Includes exact Rupee Day Closes (Day-1 to Day 400 + Price Today) & Returns
+    // =========================================================================
+    const LIVE_SPREADSHEET_ID = '1YlgsqJZXoqzFfpjjyWbOSQ_ru92_luzu4nGR7WH5eV8';
+
+    let db = {
+      mainDatabase: [
+        { " ": "Anya Polytech & Fertilizers Limited", "Sector": "Fertilizers & Agrochemicals", "Listing Date": "2025-01-02", "Stock Tickers": "ANYA", "Issue Price": 14.00, "Day-1 Close": 17.95, "Day 7 Close": 17.25, "Day 30 Close": 22.15, "Day 35 Close": 23.65, "Day 60 Close": 22.80, "Day 90 Close": 21.80, "Day 100 Close": 21.70, "Day 365 Close": 19.50, "Day 400 Close": 20.95, "Price Today": 15.05, "1D return": 0.282143, "7D return": 0.232143, "30D return": 0.582143, "35D return": 0.689286, "60D return": 0.628571, "90D return": 0.557143, "100D return": 0.550000, "365D return": 0.392857, "400D return": 0.496429, "Since Listing Return": 0.075000, "Issue Size": 44.80, "BRLM": "Beeline Capital Advisors Private Limited", "Allocation to QIBs (Rs.cr.)": 8.50, "Allocation to Anchor Investors (Rs.cr.)": 12.75, "Anchor Allocation % of Issue": 28.46, "Anchor Allocation % of QIB": 59.98, "Names of Anchors": "Zeta Global Funds, NAV Capital, Aarth AIF, Nexus Equity Growth Fund, Shine Star Build-Cap" },
+        { " ": "Citichem India Limited", "Sector": "Specialty Chemicals", "Listing Date": "2025-01-03", "Stock Tickers": "544324", "Issue Price": 70.00, "Day-1 Close": 68.28, "Day 7 Close": 52.85, "Day 30 Close": 35.75, "Day 35 Close": 39.91, "Day 60 Close": 29.45, "Day 90 Close": 26.66, "Day 100 Close": 26.93, "Day 365 Close": 23.40, "Day 400 Close": 17.25, "Price Today": 17.00, "1D return": -0.024571, "7D return": -0.245000, "30D return": -0.489286, "35D return": -0.429857, "60D return": -0.579286, "90D return": -0.619143, "100D return": -0.615286, "365D return": -0.665714, "400D return": -0.753571, "Since Listing Return": -0.757143, "Issue Size": 12.60, "BRLM": "Horizon Management Private Limited", "Allocation to QIBs (Rs.cr.)": "Fixed Price Issue", "Allocation to Anchor Investors (Rs.cr.)": "", "Anchor Allocation % of Issue": "", "Anchor Allocation % of QIB": "Fixed Price Issue", "Names of Anchors": "Fixed Price Issue" },
+        { " ": "Technichem Organics Limited", "Sector": "Specialty Chemicals", "Listing Date": "2025-01-07", "Stock Tickers": "544327", "Issue Price": 55.00, "Day-1 Close": 60.11, "Day 7 Close": 56.76, "Day 30 Close": 57.28, "Day 35 Close": 52.83, "Day 60 Close": 48.00, "Day 90 Close": 45.60, "Day 100 Close": 53.47, "Day 365 Close": 52.50, "Day 400 Close": 47.99, "Price Today": 57.75, "1D return": 0.092909, "7D return": 0.032000, "30D return": 0.041455, "35D return": -0.039455, "60D return": -0.127273, "90D return": -0.170909, "100D return": -0.027818, "365D return": -0.045455, "400D return": -0.127455, "Since Listing Return": 0.050000, "Issue Size": 25.25, "BRLM": "Shreni Shares Limited", "Allocation to QIBs (Rs.cr.)": "Fixed Price Issue", "Allocation to Anchor Investors (Rs.cr.)": "", "Anchor Allocation % of Issue": "", "Anchor Allocation % of QIB": "Fixed Price Issue", "Names of Anchors": "Fixed Price Issue" },
+        { " ": "Leo Dryfruits & Spices Trading Limited", "Sector": "Food & Agri Products", "Listing Date": "2025-01-08", "Stock Tickers": "544329", "Issue Price": 52.00, "Day-1 Close": 71.36, "Day 7 Close": 61.03, "Day 30 Close": 54.77, "Day 35 Close": 54.35, "Day 60 Close": 52.37, "Day 90 Close": 54.50, "Day 100 Close": 55.55, "Day 365 Close": 62.25, "Day 400 Close": 58.00, "Price Today": 60.40, "1D return": 0.372308, "7D return": 0.173654, "30D return": 0.053269, "35D return": 0.045192, "60D return": 0.007115, "90D return": 0.048077, "100D return": 0.068269, "365D return": 0.197115, "400D return": 0.115385, "Since Listing Return": 0.161538, "Issue Size": 25.12, "BRLM": "Shreni Shares Limited", "Allocation to QIBs (Rs.cr.)": 11.65, "Allocation to Anchor Investors (Rs.cr.)": 6.88, "Anchor Allocation % of Issue": 28.88, "Anchor Allocation % of QIB": 59.11, "Names of Anchors": "Vikasa India EIF, Smart Horizon Opportunity Fund, Beacon Stone Capital, Ashika Global Securities, Saint Capital Fund, Chanakya Opportunities Fund" },
+        { " ": "Parmeshwar Metal Limited", "Sector": "Metal Products", "Listing Date": "2025-01-09", "Stock Tickers": "544330", "Issue Price": 61.00, "Day-1 Close": 88.72, "Day 7 Close": 70.99, "Day 30 Close": 63.00, "Day 35 Close": 61.00, "Day 60 Close": 53.12, "Day 90 Close": 62.57, "Day 100 Close": 66.00, "Day 365 Close": 169.90, "Day 400 Close": 127.00, "Price Today": 310.50, "1D return": 0.454426, "7D return": 0.163770, "30D return": 0.032787, "35D return": 0.000000, "60D return": -0.129180, "90D return": 0.025738, "100D return": 0.081967, "365D return": 1.785246, "400D return": 1.081967, "Since Listing Return": 4.090164, "Issue Size": 24.74, "BRLM": "Beeline Capital Advisors Private Limited", "Allocation to QIBs (Rs.cr.)": 11.75, "Allocation to Anchor Investors (Rs.cr.)": 7.05, "Anchor Allocation % of Issue": 28.50, "Anchor Allocation % of QIB": 59.98, "Names of Anchors": "NAV Capital, Rajasthan Global Securities, 3 Sigma Global Fund" },
+        { " ": "Fabtech Technologies Cleanrooms Limited", "Sector": "Industrial Engineering", "Listing Date": "2025-01-10", "Stock Tickers": "544332", "Issue Price": 85.00, "Day-1 Close": 169.57, "Day 7 Close": 216.39, "Day 30 Close": 315.35, "Day 35 Close": 302.75, "Day 60 Close": 304.15, "Day 90 Close": 327.35, "Day 100 Close": 341.00, "Day 365 Close": 308.75, "Day 400 Close": 279.70, "Price Today": 514.90, "1D return": 0.994941, "7D return": 1.545765, "30D return": 2.710000, "35D return": 2.561765, "60D return": 2.578235, "90D return": 2.851176, "100D return": 3.011765, "365D return": 2.632353, "400D return": 2.290588, "Since Listing Return": 5.057647, "Issue Size": 27.74, "BRLM": "Vivro Financial Services Private Limited", "Allocation to QIBs (Rs.cr.)": 13.10, "Allocation to Anchor Investors (Rs.cr.)": 7.86, "Anchor Allocation % of Issue": 28.33, "Anchor Allocation % of QIB": 59.98, "Names of Anchors": "Abakkus Venture Opportunities Fund, Mint Focused Growth Fund, Hem Growth Opportunities Fund, Motilal Oswal Finvest" },
+        { " ": "Indobell Insulation Limited", "Sector": "Insulation & Building Materials", "Listing Date": "2025-01-13", "Stock Tickers": "544334", "Issue Price": 46.00, "Day-1 Close": 91.77, "Day 7 Close": 117.09, "Day 30 Close": 160.00, "Day 35 Close": 137.20, "Day 60 Close": 131.00, "Day 90 Close": 131.10, "Day 100 Close": 130.45, "Day 365 Close": 63.00, "Day 400 Close": 53.00, "Price Today": 60.49, "1D return": 0.995000, "7D return": 1.545435, "30D return": 2.478261, "35D return": 1.982609, "60D return": 1.847826, "90D return": 1.850000, "100D return": 1.835870, "365D return": 0.369565, "400D return": 0.152174, "Since Listing Return": 0.315000, "Issue Size": 10.14, "BRLM": "Finshore Management Services Limited", "Allocation to QIBs (Rs.cr.)": "Fixed Price Issue", "Allocation to Anchor Investors (Rs.cr.)": "", "Anchor Allocation % of Issue": "", "Anchor Allocation % of QIB": "Fixed Price Issue", "Names of Anchors": "Fixed Price Issue" },
+        { " ": "B.R.Goyal Infrastructure Limited", "Sector": "Infrastructure & Construction", "Listing Date": "2025-01-14", "Stock Tickers": "544335", "Issue Price": 135.00, "Day-1 Close": 142.50, "Day 7 Close": 145.30, "Day 30 Close": 106.00, "Day 35 Close": 100.00, "Day 60 Close": 117.85, "Day 90 Close": 110.25, "Day 100 Close": 131.95, "Day 365 Close": 118.00, "Day 400 Close": 99.79, "Price Today": 190.85, "1D return": 0.055556, "7D return": 0.076296, "30D return": -0.214815, "35D return": -0.259259, "60D return": -0.127037, "90D return": -0.183333, "100D return": -0.022593, "365D return": -0.125926, "400D return": -0.260815, "Since Listing Return": 0.413704, "Issue Size": 85.21, "BRLM": "Beeline Capital Advisors Private Limited", "Allocation to QIBs (Rs.cr.)": 40.20, "Allocation to Anchor Investors (Rs.cr.)": 24.11, "Anchor Allocation % of Issue": 28.30, "Anchor Allocation % of QIB": 59.97, "Names of Anchors": "Holani Venture Capital Fund, Vikasa India EIF, NAV Capital, Saint Capital Fund" },
+        { " ": "Delta Autocorp Limited", "Sector": "Electric Vehicles & Auto Components", "Listing Date": "2025-01-14", "Stock Tickers": "DELTA", "Issue Price": 130.00, "Day-1 Close": 167.25, "Day 7 Close": 153.05, "Day 30 Close": 86.55, "Day 35 Close": 74.55, "Day 60 Close": 75.00, "Day 90 Close": 74.85, "Day 100 Close": 71.20, "Day 365 Close": 44.15, "Day 400 Close": 40.40, "Price Today": 37.90, "1D return": 0.286538, "7D return": 0.177308, "30D return": -0.334231, "35D return": -0.426538, "60D return": -0.423077, "90D return": -0.424231, "100D return": -0.452308, "365D return": -0.660385, "400D return": -0.689231, "Since Listing Return": -0.708462, "Issue Size": 54.60, "BRLM": "GYR Capital Advisors Private Limited", "Allocation to QIBs (Rs.cr.)": 25.80, "Allocation to Anchor Investors (Rs.cr.)": 15.47, "Anchor Allocation % of Issue": 28.33, "Anchor Allocation % of QIB": 59.97, "Names of Anchors": "Bharat Venture Opportunities Fund, Vikasa India EIF, Saint Capital Fund, HDFC Bank Ltd, Mint Focused Growth Fund" },
+        { " ": "Tejas Cargo India Limited", "Sector": "Logistics", "Listing Date": "2025-02-24", "Stock Tickers": "TEJAS", "Issue Price": 168.00, "Day-1 Close": 168.00, "Day 7 Close": 167.85, "Day 30 Close": 166.00, "Day 35 Close": 160.00, "Day 60 Close": 160.00, "Day 90 Close": 169.00, "Day 100 Close": 171.90, "Day 365 Close": 289.00, "Day 400 Close": 285.45, "Price Today": 410.00, "1D return": 0.000000, "7D return": -0.000893, "30D return": -0.011905, "35D return": -0.047619, "60D return": -0.047619, "90D return": 0.005952, "100D return": 0.023214, "365D return": 0.720238, "400D return": 0.699107, "Since Listing Return": 1.440476, "Issue Size": 105.84, "BRLM": "New Berry Capitals Private Limited", "Allocation to QIBs (Rs.cr.)": 50.10, "Allocation to Anchor Investors (Rs.cr.)": 30.04, "Anchor Allocation % of Issue": 28.38, "Anchor Allocation % of QIB": 59.97, "Names of Anchors": "Saint Capital Fund, M7 Global Fund, Minerva Emerging Opportunities Fund" },
+        { " ": "Beezaasan Explotech Limited", "Sector": "Explosives & Industrial Chemicals", "Listing Date": "2025-03-03", "Stock Tickers": "544360", "Issue Price": 175.00, "Day-1 Close": 153.30, "Day 7 Close": 161.90, "Day 30 Close": 187.85, "Day 35 Close": 225.80, "Day 60 Close": 238.80, "Day 90 Close": 223.20, "Day 100 Close": 260.50, "Day 365 Close": 217.10, "Day 400 Close": 197.35, "Price Today": 696.95, "1D return": -0.124000, "7D return": -0.074857, "30D return": 0.073429, "35D return": 0.290286, "60D return": 0.364571, "90D return": 0.275429, "100D return": 0.488571, "365D return": 0.240571, "400D return": 0.127714, "Since Listing Return": 2.982571, "Issue Size": 59.93, "BRLM": "Smart Horizon Capital Advisors Private Limited", "Allocation to QIBs (Rs.cr.)": 28.40, "Allocation to Anchor Investors (Rs.cr.)": 16.95, "Anchor Allocation % of Issue": 28.28, "Anchor Allocation % of QIB": 59.69, "Names of Anchors": "Rajasthan Global Securities, LRSD Securities, Vikasa India EIF, Shine Star Build-Cap" },
+        { " ": "Danish Power Limited", "Sector": "Electrical Equipment", "Listing Date": "2024-10-29", "Stock Tickers": "DANISH", "Issue Price": 380.00, "Day-1 Close": 570.00, "Day 7 Close": 623.96, "Day 30 Close": 731.12, "Day 35 Close": 752.78, "Day 60 Close": 819.28, "Day 90 Close": 892.24, "Day 100 Close": 916.56, "Day 365 Close": 1096.30, "Day 400 Close": 1156.34, "Price Today": 1156.34, "1D return": 0.500000, "7D return": 0.642000, "30D return": 0.924000, "35D return": 0.981000, "60D return": 1.156000, "90D return": 1.348000, "100D return": 1.412000, "365D return": 1.885000, "400D return": 2.043000, "Since Listing Return": 2.043000, "Issue Size": 197.90, "BRLM": "Hem Securities Limited", "Allocation to QIBs (Rs.cr.)": 93.80, "Allocation to Anchor Investors (Rs.cr.)": 56.23, "Anchor Allocation % of Issue": 28.41, "Anchor Allocation % of QIB": 59.95, "Names of Anchors": "NAV Capital, Rajasthan Global Securities, Chanakya Opportunities Fund, Vikasa India EIF, Saint Capital Fund, Aarth AIF, Finavenue Capital Trust" },
+        { " ": "Sahasra Electronic Solutions Limited", "Sector": "Electronics & Industrial Technology", "Listing Date": "2024-10-04", "Stock Tickers": "SAHASRA", "Issue Price": 283.00, "Day-1 Close": 537.70, "Day 7 Close": 573.08, "Day 30 Close": 636.18, "Day 35 Close": 648.07, "Day 60 Close": 691.37, "Day 90 Close": 739.20, "Day 100 Close": 758.44, "Day 365 Close": 884.09, "Day 400 Close": 924.84, "Price Today": 924.84, "1D return": 0.900000, "7D return": 1.025000, "30D return": 1.248000, "35D return": 1.290000, "60D return": 1.443000, "90D return": 1.612000, "100D return": 1.680000, "365D return": 2.124000, "400D return": 2.268000, "Since Listing Return": 2.268000, "Issue Size": 186.16, "BRLM": "Hem Securities Limited", "Allocation to QIBs (Rs.cr.)": 88.30, "Allocation to Anchor Investors (Rs.cr.)": 52.80, "Anchor Allocation % of Issue": 28.36, "Anchor Allocation % of QIB": 59.80, "Names of Anchors": "NAV Capital, Rajasthan Global Securities, Vikasa India EIF, LRSD Securities" },
+        { " ": "Tankup Engineers Limited", "Sector": "Industrial Engineering", "Listing Date": "2025-04-30", "Stock Tickers": "TANKUP", "Issue Price": 140.00, "Day-1 Close": 245.00, "Day 7 Close": 298.00, "Day 30 Close": 392.00, "Day 35 Close": 415.00, "Day 60 Close": 510.00, "Day 90 Close": 620.00, "Day 100 Close": 685.00, "Day 365 Close": 840.00, "Day 400 Close": 908.70, "Price Today": 1758.75, "1D return": 0.750000, "7D return": 1.128571, "30D return": 1.800000, "35D return": 1.964286, "60D return": 2.642857, "90D return": 3.428571, "100D return": 3.892857, "365D return": 5.000000, "400D return": 5.490714, "Since Listing Return": 11.562500, "Issue Size": 19.53, "BRLM": "Hem Securities Limited", "Allocation to QIBs (Rs.cr.)": 9.25, "Allocation to Anchor Investors (Rs.cr.)": 5.55, "Anchor Allocation % of Issue": 28.42, "Anchor Allocation % of QIB": 60.00, "Names of Anchors": "Sanshi Fund I, Bharat Venture Opportunities Fund, Finavenue Capital Trust, Aarth AIF" },
+        { " ": "Cryogenic OGS Limited", "Sector": "Industrial Engineering", "Listing Date": "2025-03-19", "Stock Tickers": "CRYOGEN", "Issue Price": 95.00, "Day-1 Close": 180.50, "Day 7 Close": 212.00, "Day 30 Close": 265.00, "Day 35 Close": 278.00, "Day 60 Close": 310.00, "Day 90 Close": 333.00, "Day 100 Close": 388.39, "Day 365 Close": 572.22, "Day 400 Close": 705.12, "Price Today": 833.47, "1D return": 0.900000, "7D return": 1.231579, "30D return": 1.789474, "35D return": 1.926316, "60D return": 2.263158, "90D return": 2.505263, "100D return": 3.088316, "365D return": 5.023368, "400D return": 6.422316, "Since Listing Return": 7.773400, "Issue Size": 38.40, "BRLM": "Hem Securities Limited", "Allocation to QIBs (Rs.cr.)": 18.20, "Allocation to Anchor Investors (Rs.cr.)": 10.92, "Anchor Allocation % of Issue": 28.44, "Anchor Allocation % of QIB": 60.00, "Names of Anchors": "Sanshi Fund I, Meru Investment Fund, Rajasthan Global Securities, India Max Investment" },
+        { " ": "Anondita Medicare Limited", "Sector": "Healthcare & Pharmaceuticals", "Listing Date": "2025-02-11", "Stock Tickers": "ANONDITA", "Issue Price": 115.00, "Day-1 Close": 207.00, "Day 7 Close": 258.00, "Day 30 Close": 368.00, "Day 35 Close": 374.00, "Day 60 Close": 472.45, "Day 90 Close": 512.35, "Day 100 Close": 582.94, "Day 365 Close": 834.30, "Day 400 Close": 816.89, "Price Today": 816.89, "1D return": 0.800000, "7D return": 1.243478, "30D return": 2.200000, "35D return": 2.252174, "60D return": 3.108261, "90D return": 3.455217, "100D return": 4.069043, "365D return": 6.254783, "400D return": 6.103391, "Since Listing Return": 6.103391, "Issue Size": 42.10, "BRLM": "Smart Horizon Capital Advisors Private Limited", "Allocation to QIBs (Rs.cr.)": 20.00, "Allocation to Anchor Investors (Rs.cr.)": 12.00, "Anchor Allocation % of Issue": 28.50, "Anchor Allocation % of QIB": 60.00, "Names of Anchors": "Aarth AIF, Fortune Hands Growth Fund, Vikasa India EIF" },
+        { " ": "Accord Transformer & Switchgear Limited", "Sector": "Electrical Equipment", "Listing Date": "2026-03-02", "Stock Tickers": "ACCORD", "Issue Price": 115.00, "Day-1 Close": 172.50, "Day 7 Close": 184.00, "Day 30 Close": 198.50, "Day 35 Close": 204.00, "Day 60 Close": 211.00, "Day 90 Close": 216.00, "Day 100 Close": 219.85, "Day 365 Close": null, "Day 400 Close": null, "Price Today": 219.85, "1D return": 0.500000, "7D return": 0.600000, "30D return": 0.726087, "35D return": 0.773913, "60D return": 0.834783, "90D return": 0.878261, "100D return": 0.911739, "365D return": null, "400D return": null, "Since Listing Return": 0.911739, "Issue Size": 48.50, "BRLM": "Hem Securities Limited", "Allocation to QIBs (Rs.cr.)": 23.00, "Allocation to Anchor Investors (Rs.cr.)": 13.80, "Anchor Allocation % of Issue": 28.45, "Anchor Allocation % of QIB": 60.00, "Names of Anchors": "Finavenue Capital Trust, Aarth AIF, India Max Investment, Shine Star Build-Cap" },
+        { " ": "Accretion Nutraveda Limited", "Sector": "Healthcare & Pharmaceuticals", "Listing Date": "2026-02-04", "Stock Tickers": "ACCRET", "Issue Price": 129.00, "Day-1 Close": 193.50, "Day 7 Close": 215.00, "Day 30 Close": 245.00, "Day 35 Close": 252.00, "Day 60 Close": 270.00, "Day 90 Close": 284.00, "Day 100 Close": 292.00, "Day 365 Close": null, "Day 400 Close": null, "Price Today": 292.00, "1D return": 0.500000, "7D return": 0.666667, "30D return": 0.899225, "35D return": 0.953488, "60D return": 1.093023, "90D return": 1.201550, "100D return": 1.263566, "365D return": null, "400D return": null, "Since Listing Return": 1.263566, "Issue Size": 34.20, "BRLM": "GYR Capital Advisors Private Limited", "Allocation to QIBs (Rs.cr.)": 16.20, "Allocation to Anchor Investors (Rs.cr.)": 9.72, "Anchor Allocation % of Issue": 28.42, "Anchor Allocation % of QIB": 60.00, "Names of Anchors": "Vikasa India EIF, Saint Capital Fund, Nine Alps Trust" }
+      ],
+      feeder: []
+    };
+
+    // Build feeder records from mainDatabase if not yet synced from live sheet
+    function syncFeederFromMainIfEmpty() {
+      if (db.feeder && db.feeder.length > 0) return;
+      const rows = [];
+      db.mainDatabase.forEach(r => {
+        const comp = getMainCompanyName(r);
+        if (!comp) return;
+        const brlm = String(r['BRLM'] || '').trim();
+        const rawAnchors = String(r['Names of Anchors'] || '').trim();
+        if (!rawAnchors || rawAnchors.toLowerCase().includes('fixed price')) return;
+        rawAnchors.split(',').map(a => a.trim()).filter(Boolean).forEach(anchor => {
+          rows.push({
+            "Company": comp,
+            "Anchor": anchor,
+            "BRLM": brlm,
+            "ListingDate": r['Listing Date'],
+            "IssueSize": r['Issue Size'],
+            "AnchorPctOfIssue": r['Anchor Allocation % of Issue'],
+            "1D": r['1D return'],
+            "7D": r['7D return'],
+            "30D": r['30D return'],
+            "35D": r['35D return'],
+            "60D": r['60D return'],
+            "90D": r['90D return'],
+            "100D": r['100D return'],
+            "365D": r['365D return'],
+            "400D": r['400D return'],
+            "SinceListing": r['Since Listing Return'],
+            "AnchorNormalized": anchor,
+            "BRLMNormalized": brlm
+          });
+        });
+      });
+      db.feeder = rows;
+    }
+
+    // =========================================================================
+    // 2. GLOBAL STATE & HORIZON DEFINITIONS
+    // =========================================================================
+    const HORIZONS = [
+      { key: '1D',    mainRetCol: '1D return',            mainPriceCol: 'Day-1 Close',   label: '1D',            shortLabel: '1D' },
+      { key: '7D',    mainRetCol: '7D return',            mainPriceCol: 'Day 7 Close',   label: '7D',            shortLabel: '7D' },
+      { key: '30D',   mainRetCol: '30D return',           mainPriceCol: 'Day 30 Close',  label: '30D',           shortLabel: '30D' },
+      { key: '35D',   mainRetCol: '35D return',           mainPriceCol: 'Day 35 Close',  label: '35D',           shortLabel: '35D' },
+      { key: '60D',   mainRetCol: '60D return',           mainPriceCol: 'Day 60 Close',  label: '60D',           shortLabel: '60D' },
+      { key: '90D',   mainRetCol: '90D return',           mainPriceCol: 'Day 90 Close',  label: '90D',           shortLabel: '90D' },
+      { key: '100D',  mainRetCol: '100D return',          mainPriceCol: 'Day 100 Close', label: '100D',          shortLabel: '100D' },
+      { key: '365D',  mainRetCol: '365D return',          mainPriceCol: 'Day 365 Close', label: '365D',          shortLabel: '365D' },
+      { key: '400D',  mainRetCol: '400D return',          mainPriceCol: 'Day 400 Close', label: '400D',          shortLabel: '400D' },
+      { key: 'Since', mainRetCol: 'Since Listing Return', mainPriceCol: 'Price Today',   label: 'Since-Listing', shortLabel: 'Since' }
+    ];
+
+    let calcDisplayMode = 'PCT'; // 'PCT' | 'PRICE' | 'BOTH'
+    let mainDisplayMode = 'PCT'; // 'PCT' | 'PRICE' | 'BOTH'
+    let companyLookupMap = new Map(); // normalized company name -> mainDatabase row + feeder anchors/brlms
+    let drawerChartInstance = null;
+
+    const tableSortState = {
+      calc: { key: null, dir: 'desc' },
+      main: { key: null, dir: 'desc' }
+    };
+
+    // =========================================================================
+    // 3. DATA INDEXING & NORMALIZATION ENGINE
+    // =========================================================================
+    function normKey(str) {
+      return String(str || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function getMainCompanyName(row) {
+      if (!row) return '';
+      const raw = String(row[' '] || row['Unnamed: 0'] || row['Company Name'] || row['Company'] || row['__col_0'] || '').trim();
+      if (!raw || raw === 'Primary Database' || raw === 'Company Name' || raw === 'Company') return '';
+      return raw;
+    }
+
+    function getFeederAnchorName(row) {
+      return String(row['AnchorNormalized'] || row['Anchor'] || row['__col_16'] || row['__col_1'] || '').trim();
+    }
+
+    function getFeederBrlmName(row) {
+      return String(row['BRLMNormalized'] || row['BRLM'] || row['__col_21'] || row['__col_17'] || row['__col_2'] || '').trim();
+    }
+
+    function buildCompanyMasterIndex() {
+      syncFeederFromMainIfEmpty();
+      companyLookupMap.clear();
+
+      // 1. Index all companies from Main Database (preserving all Rupee Day Closes & Returns)
+      db.mainDatabase.forEach(r => {
+        const comp = getMainCompanyName(r);
+        if (!comp) return;
+        const k = normKey(comp);
+        const anchorsSet = new Set();
+        const brlmsSet = new Set();
+
+        const rawBrlm = String(r['BRLM'] || r['__col_26'] || '').trim();
+        if (rawBrlm && rawBrlm !== '—' && !rawBrlm.toLowerCase().includes('fixed price')) {
+          brlmsSet.add(rawBrlm);
+        }
+
+        const rawAnchors = String(r['Names of Anchors'] || r['__col_31'] || '').trim();
+        if (rawAnchors && !rawAnchors.toLowerCase().includes('fixed price') && rawAnchors !== '—') {
+          rawAnchors.split(',').map(a => a.trim()).filter(Boolean).forEach(a => anchorsSet.add(a));
+        }
+
+        companyLookupMap.set(k, {
+          companyName: comp,
+          mainRow: r,
+          anchors: anchorsSet,
+          brlms: brlmsSet
+        });
+      });
+
+      // 2. Enrich with normalized Anchor & BRLM relationships from 'Anchor and BRLM_feeder'
+      db.feeder.forEach(r => {
+        const comp = String(r['Company'] || r['__col_0'] || '').trim();
+        if (!comp || comp === 'Company') return;
+        const k = normKey(comp);
+        const normA = getFeederAnchorName(r);
+        const normB = getFeederBrlmName(r);
+
+        if (!companyLookupMap.has(k)) {
+          companyLookupMap.set(k, {
+            companyName: comp,
+            mainRow: {
+              " ": comp,
+              "Sector": "—",
+              "Listing Date": r['ListingDate'] || '',
+              "Issue Price": null,
+              "Issue Size": r['IssueSize'] || null,
+              "BRLM": normB || '',
+              "Anchor Allocation % of Issue": r['AnchorPctOfIssue'] || null,
+              "1D return": r['1D'],
+              "7D return": r['7D'],
+              "30D return": r['30D'],
+              "35D return": r['35D'],
+              "60D return": r['60D'],
+              "90D return": r['90D'],
+              "100D return": r['100D'],
+              "365D return": r['365D'],
+              "400D return": r['400D'],
+              "Since Listing Return": r['SinceListing']
+            },
+            anchors: new Set(),
+            brlms: new Set()
+          });
+        }
+
+        const entry = companyLookupMap.get(k);
+        if (normA && normA !== 'No Anchor Data' && !normA.includes('#REF!')) {
+          entry.anchors.add(normA);
+        }
+        if (normB && normB !== 'No Anchor Data' && !normB.includes('#REF!')) {
+          entry.brlms.add(normB);
+        }
+      });
+    }
+
+    // =========================================================================
+    // 4. VALUE PARSERS & CELL FORMATTERS
+    // =========================================================================
+    function highlightMatch(text, query) {
+      const str = String(text ?? '');
+      if (!query || !str || str === '—') return str;
+      const cleanQ = query.trim();
+      if (!cleanQ) return str;
+      const escaped = cleanQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      return str.replace(regex, '<mark class="search-hl">$1</mark>');
+    }
+
+    function parseReturnPct(val) {
+      if (val === undefined || val === null) return null;
+      const str = String(val).trim();
+      if (
+        !str ||
+        str === '-' ||
+        str === '\\-' ||
+        str.toLowerCase().includes('no data') ||
+        str.toLowerCase().includes('no history') ||
+        str.toLowerCase().includes('fixed price') ||
+        str.includes('#') ||
+        /^\d{4}-\d{2}-\d{2}/.test(str)
+      ) {
+        return null;
+      }
+      const hasPctSign = str.includes('%');
+      const cleaned = str.replace(/[\\%₹$,\s+]/g, '');
+      const num = parseFloat(cleaned);
+      if (Number.isNaN(num)) return null;
+      // Convert raw Excel decimal returns (e.g. 0.2821 -> 28.21%, 4.09 -> 409.0%)
+      if (!hasPctSign && num !== 0 && Math.abs(num) <= 15.0 && String(val).includes('.')) {
+        return num * 100;
+      }
+      return num;
+    }
+
+    function parsePriceNum(val) {
+      if (val === undefined || val === null) return null;
+      const str = String(val).trim();
+      if (
+        !str ||
+        str === '-' ||
+        str.toLowerCase().includes('fixed price') ||
+        str.toLowerCase().includes('no data') ||
+        str.includes('#') ||
+        /^\d{4}-\d{2}-\d{2}/.test(str)
+      ) {
+        return null;
+      }
+      const num = parseFloat(str.replace(/[,₹$\s]/g, ''));
+      return Number.isNaN(num) ? null : num;
+    }
+
+    function formatDateStr(val) {
+      if (!val) return '—';
+      const str = String(val).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+        return str.slice(0, 10);
+      }
+      return str;
+    }
+
+    function formatReturnHtml(val) {
+      const num = parseReturnPct(val);
+      if (num === null) return `<span class="ret-muted">—</span>`;
+      const sign = num > 0 ? '+' : '';
+      const cls = num > 0 ? 'ret-green' : (num < 0 ? 'ret-red' : '');
+      return `<span class="${cls}">${sign}${num.toFixed(2)}%</span>`;
+    }
+
+    function formatReturnTd(val) {
+      const num = parseReturnPct(val);
+      if (num === null) return `<td class="text-right ret-muted">—</td>`;
+      if (num > 0) {
+        return `<td class="text-right ret-green" style="color: #16A34A !important; font-weight: 600;">+${num.toFixed(2)}%</td>`;
+      }
+      if (num < 0) {
+        return `<td class="text-right ret-red" style="color: #DC2626 !important; font-weight: 600;">${num.toFixed(2)}%</td>`;
+      }
+      return `<td class="text-right">0.00%</td>`;
+    }
+
+    function formatPriceTd(val) {
+      const num = parsePriceNum(val);
+      if (num === null) return `<td class="text-right ret-muted">—</td>`;
+      return `<td class="text-right price-cell">₹${num.toFixed(2)}</td>`;
+    }
+
+    function formatBothTd(priceVal, retVal) {
+      const pNum = parsePriceNum(priceVal);
+      const rNum = parseReturnPct(retVal);
+      if (pNum === null && rNum === null) return `<td class="text-right ret-muted">—</td>`;
+      const pStr = pNum !== null ? `₹${pNum.toFixed(2)}` : '—';
+      let rStr = '';
+      if (rNum !== null) {
+        const sign = rNum > 0 ? '+' : '';
+        const color = rNum > 0 ? '#16A34A' : (rNum < 0 ? '#DC2626' : '#64748B');
+        rStr = ` <span style="color:${color}; font-weight:700;">(${sign}${rNum.toFixed(1)}%)</span>`;
+      }
+      return `<td class="text-right">${pStr}${rStr}</td>`;
+    }
+
+    // Derive Rupee closing price if missing in sheet using Issue Price * (1 + Return)
+    function getResolvedClosePrice(mainRow, horizonObj) {
+      const explicitPrice = parsePriceNum(mainRow[horizonObj.mainPriceCol]);
+      if (explicitPrice !== null) return explicitPrice;
+      const issuePrice = parsePriceNum(mainRow['Issue Price']);
+      const retPct = parseReturnPct(mainRow[horizonObj.mainRetCol] ?? mainRow[horizonObj.key]);
+      if (issuePrice !== null && retPct !== null) {
+        return +(issuePrice * (1 + retPct / 100)).toFixed(2);
+      }
+      return null;
+    }
+
+    function getResolvedReturnPct(mainRow, horizonObj) {
+      const rawRet = mainRow[horizonObj.mainRetCol] ?? mainRow[horizonObj.key];
+      const parsed = parseReturnPct(rawRet);
+      if (parsed !== null) return parsed;
+      const issuePrice = parsePriceNum(mainRow['Issue Price']);
+      const closePrice = parsePriceNum(mainRow[horizonObj.mainPriceCol]);
+      if (issuePrice && closePrice !== null) {
+        return ((closePrice - issuePrice) / issuePrice) * 100;
+      }
+      return null;
+    }
+
+    // =========================================================================
+    // 5. TAB 1: 3-DROPDOWN PERFORMANCE CALCULATOR ENGINE
+    // =========================================================================
+    function populateCalculatorDropdowns(resetValues = false) {
+      const qA1 = (document.getElementById('search-anchor-1')?.value || '').toLowerCase().trim();
+      const qA2 = (document.getElementById('search-anchor-2')?.value || '').toLowerCase().trim();
+      const qB  = (document.getElementById('search-brlm-calc')?.value || '').toLowerCase().trim();
+
+      const anchorDealCounts = {};
+      const brlmDealCounts = {};
+
+      companyLookupMap.forEach(entry => {
+        entry.anchors.forEach(a => {
+          anchorDealCounts[a] = (anchorDealCounts[a] || 0) + 1;
+        });
+        entry.brlms.forEach(b => {
+          brlmDealCounts[b] = (brlmDealCounts[b] || 0) + 1;
+        });
+      });
+
+      const allAnchors = Object.keys(anchorDealCounts).sort((a, b) => anchorDealCounts[b] - anchorDealCounts[a] || a.localeCompare(b));
+      const allBrlms   = Object.keys(brlmDealCounts).sort((a, b) => brlmDealCounts[b] - brlmDealCounts[a] || a.localeCompare(b));
+
+      document.getElementById('count-anchor1-opts').textContent = `${allAnchors.length} Anchors Indexed`;
+      document.getElementById('count-brlm-opts').textContent    = `${allBrlms.length} BRLMs Indexed`;
+
+      const selA1 = document.getElementById('select-anchor-1');
+      const selA2 = document.getElementById('select-anchor-2');
+      const selB  = document.getElementById('select-brlm-calc');
+
+      const prevA1 = resetValues ? 'ALL' : (selA1.value || 'ALL');
+      const prevA2 = resetValues ? 'NONE' : (selA2.value || 'NONE');
+      const prevB  = resetValues ? 'ALL' : (selB.value || 'ALL');
+
+      const filteredA1 = allAnchors.filter(a => !qA1 || a.toLowerCase().includes(qA1));
+      selA1.innerHTML =
+        `<option value="ALL">-- All Anchors / Leave Blank (${companyLookupMap.size} IPOs) --</option>` +
+        filteredA1.map(a => `<option value="${a}">${a} (${anchorDealCounts[a]} IPOs)</option>`).join('');
+      if (prevA1 === 'ALL' || filteredA1.includes(prevA1)) selA1.value = prevA1;
+
+      const filteredA2 = allAnchors.filter(a => !qA2 || a.toLowerCase().includes(qA2));
+      selA2.innerHTML =
+        `<option value="NONE">-- None (Single Anchor / BRLM Mode) --</option>` +
+        filteredA2.map(a => `<option value="${a}">${a} (${anchorDealCounts[a]} IPOs)</option>`).join('');
+      if (prevA2 === 'NONE' || filteredA2.includes(prevA2)) selA2.value = prevA2;
+
+      const filteredB = allBrlms.filter(b => !qB || b.toLowerCase().includes(qB));
+      selB.innerHTML =
+        `<option value="ALL">-- All BRLMs / Leave Blank --</option>` +
+        filteredB.map(b => `<option value="${b}">${b} (${brlmDealCounts[b]} IPOs)</option>`).join('');
+      if (prevB === 'ALL' || filteredB.includes(prevB)) selB.value = prevB;
+    }
+
+    function resetCalculatorSelections() {
+      document.getElementById('search-anchor-1').value = '';
+      document.getElementById('search-anchor-2').value = '';
+      document.getElementById('search-brlm-calc').value = '';
+      document.getElementById('calc-table-search').value = '';
+      tableSortState.calc.key = null;
+      populateCalculatorDropdowns(true);
+      renderCalculatorView();
+    }
+
+    function getFilteredCalculatorEntries() {
+      const selA1 = document.getElementById('select-anchor-1')?.value || 'ALL';
+      const selA2 = document.getElementById('select-anchor-2')?.value || 'NONE';
+      const selB  = document.getElementById('select-brlm-calc')?.value || 'ALL';
+
+      const matched = [];
+      companyLookupMap.forEach(entry => {
+        if (selA1 !== 'ALL' && !entry.anchors.has(selA1)) return;
+        if (selA2 !== 'NONE' && !entry.anchors.has(selA2)) return;
+        if (selB !== 'ALL' && !entry.brlms.has(selB)) return;
+        matched.push(entry);
+      });
+
+      return { matched, selA1, selA2, selB };
+    }
+
+    function renderCalculatorView() {
+      const { matched, selA1, selA2, selB } = getFilteredCalculatorEntries();
+      const rawTableQ = (document.getElementById('calc-table-search')?.value || '').trim();
+      const tableQ = rawTableQ.toLowerCase();
+
+      // Build Selection Title Badge
+      const parts = [];
+      if (selA1 !== 'ALL') parts.push(`Anchor 1: ${selA1}`);
+      if (selA2 !== 'NONE') parts.push(`Anchor 2 (Co-Investor): ${selA2}`);
+      if (selB !== 'ALL') parts.push(`BRLM: ${selB}`);
+      const selectionLabel = parts.length > 0 ? parts.join('  ×  ') : 'All Tracked SME IPOs (Full Universe)';
+      document.getElementById('calc-active-selection-badge').textContent = selectionLabel;
+
+      const totalMatched = matched.length;
+
+      // Compute Horizon-by-Horizon Statistics (Avg Return %, No. of Winning Companies, Win Rate %, Top 3 Performers)
+      const horizonStats = HORIZONS.map(h => {
+        const validItems = [];
+        matched.forEach(entry => {
+          const ret = getResolvedReturnPct(entry.mainRow, h);
+          if (ret !== null) {
+            validItems.push({ companyName: entry.companyName, ret });
+          }
+        });
+
+        const validCount = validItems.length;
+        const winCount = validItems.filter(x => x.ret > 0).length;
+        const avgRet = validCount > 0
+          ? validItems.reduce((sum, x) => sum + x.ret, 0) / validCount
+          : null;
+        const winRatePct = validCount > 0 ? (winCount / validCount) * 100 : null;
+
+        const top3 = [...validItems]
+          .sort((a, b) => b.ret - a.ret)
+          .slice(0, 3);
+
+        return {
+          horizon: h,
+          avgRet,
+          winCount,
+          validCount,
+          totalMatched,
+          winRatePct,
+          top3
+        };
+      });
+
+      const sinceStat = horizonStats[horizonStats.length - 1];
+      const d1Stat    = horizonStats[0];
+      const d100Stat  = horizonStats[6];
+
+      // 1. Render Top 4 Executive KPI Cards
+      document.getElementById('calc-top-kpis').innerHTML = `
+        <div class="kpi-card">
+          <div class="kpi-label">Number of IPOs Matched</div>
+          <div class="kpi-val mono">${totalMatched}</div>
+          <div class="kpi-sub">Deduplicated unique SME issues</div>
+        </div>
+        <div class="kpi-card royal-border">
+          <div class="kpi-label">Win Rate (Since-Listing &gt; 0%)</div>
+          <div class="kpi-val mono" style="color: #4ADE80;">
+            ${sinceStat.winRatePct !== null ? sinceStat.winRatePct.toFixed(2) + '%' : '—'}
+          </div>
+          <div class="kpi-sub mono">
+            Winning Companies: <strong>${sinceStat.winCount}/${totalMatched}</strong>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg 1D Listing Gain %</div>
+          <div class="kpi-val mono" style="color: ${(d1Stat.avgRet ?? 0) >= 0 ? '#4ADE80' : '#F87171'};">
+            ${d1Stat.avgRet !== null ? (d1Stat.avgRet > 0 ? '+' : '') + d1Stat.avgRet.toFixed(2) + '%' : '—'}
+          </div>
+          <div class="kpi-sub mono">Day-1 Winners: <strong>${d1Stat.winCount}/${totalMatched}</strong></div>
+        </div>
+        <div class="kpi-card royal-border">
+          <div class="kpi-label">Avg Since-Listing Return %</div>
+          <div class="kpi-val mono" style="color: ${(sinceStat.avgRet ?? 0) >= 0 ? '#4ADE80' : '#F87171'};">
+            ${sinceStat.avgRet !== null ? (sinceStat.avgRet > 0 ? '+' : '') + sinceStat.avgRet.toFixed(2) + '%' : '—'}
+          </div>
+          <div class="kpi-sub mono">100D Winners: <strong>${d100Stat.winCount}/${totalMatched}</strong></div>
+        </div>
+      `;
+
+      // 2. Render Horizontal 10-Horizon Quick Strip
+      document.getElementById('calc-horizon-strip').innerHTML = horizonStats.map(st => {
+        const r = st.avgRet;
+        const color = r === null ? '#64748B' : (r > 0 ? '#16A34A' : (r < 0 ? '#DC2626' : '#0F172A'));
+        const sign = r !== null && r > 0 ? '+' : '';
+        return `
+          <div class="horizon-pill-card">
+            <div class="horizon-pill-label">Avg ${st.horizon.shortLabel} %</div>
+            <div class="horizon-pill-ret mono" style="color: ${color};">
+              ${r !== null ? sign + r.toFixed(2) + '%' : '—'}
+            </div>
+            <div class="horizon-pill-wins mono">
+              Wins: <strong>${st.winCount}/${st.totalMatched}</strong>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 3. Render Vertical Spreadsheet-Style Summary Table (with 'No. of Winning Companies' & 'Top 3 Performers')
+      document.getElementById('calc-summary-tbody').innerHTML = horizonStats.map(st => {
+        const top3Html = st.top3.length > 0
+          ? st.top3.map(p => {
+              const s = p.ret > 0 ? '+' : '';
+              return `<span onclick="openCompanyDayCloseModal('${p.companyName.replace(/'/g, "\\'")}')" class="company-link">${p.companyName}</span> <span class="mono ${p.ret >= 0 ? 'ret-green' : 'ret-red'}">(${s}${p.ret.toFixed(2)}%)</span>`;
+            }).join(', &nbsp;')
+          : '<span class="ret-muted">—</span>';
+
+        return `
+          <tr>
+            <td class="text-left" style="font-weight: 700;">Avg ${st.horizon.label} Return %</td>
+            ${formatReturnTd(st.avgRet)}
+            <td class="text-right" style="font-weight: 700;">
+              <span class="gold-pill mono" style="font-size: 11px;">${st.winCount}/${st.totalMatched}</span>
+              <span class="mono" style="color: var(--slate-500); font-size: 10.5px; margin-left: 4px;">(${st.validCount} tracked)</span>
+            </td>
+            <td class="text-right">${st.winRatePct !== null ? st.winRatePct.toFixed(1) + '%' : '—'}</td>
+            <td class="text-left" style="white-space: normal; line-height: 1.4;">${top3Html}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // 4. Filter & Sort Matching Companies Table
+      let displayEntries = matched.filter(entry => {
+        if (!tableQ) return true;
+        const comp = entry.companyName;
+        const sec  = String(entry.mainRow['Sector'] || '');
+        const aStr = [...entry.anchors].join(' ');
+        const bStr = [...entry.brlms].join(' ');
+        return `${comp} ${sec} ${aStr} ${bStr}`.toLowerCase().includes(tableQ);
+      });
+
+      if (tableSortState.calc.key) {
+        const { key, dir } = tableSortState.calc;
+        displayEntries.sort((a, b) => compareSortValues(getEntrySortValue(a, key), getEntrySortValue(b, key), dir));
+      }
+
+      document.getElementById('calc-matches-count-pill').textContent = `${displayEntries.length} Matched IPOs`;
+
+      // Render Matching Companies Table Headers
+      document.getElementById('calc-matches-thead').innerHTML = `
+        <tr>
+          <th class="col-sno">#</th>
+          <th class="text-left col-sticky-name" data-sort-key="company" onclick="toggleTableSort('calc', 'company')">Company (Click for Day-Close Tape)</th>
+          <th class="text-left" data-sort-key="date" onclick="toggleTableSort('calc', 'date')">Listing Date</th>
+          <th class="text-right" data-sort-key="price" onclick="toggleTableSort('calc', 'price')">Issue Price</th>
+          <th class="text-right" data-sort-key="size" onclick="toggleTableSort('calc', 'size')">Issue Size (Cr)</th>
+          <th class="text-left" data-sort-key="brlm" onclick="toggleTableSort('calc', 'brlm')">BRLM (Lead Manager)</th>
+          <th class="text-left col-anchor-wrap" data-sort-key="anchors" onclick="toggleTableSort('calc', 'anchors')">Participating Anchors</th>
+          ${HORIZONS.map(h => `
+            <th class="text-right" data-sort-key="${h.key}" onclick="toggleTableSort('calc', '${h.key}')">
+              ${calcDisplayMode === 'PRICE' ? h.mainPriceCol : (calcDisplayMode === 'BOTH' ? h.shortLabel + ' (₹ & %)' : h.shortLabel + ' %')}
+            </th>
+          `).join('')}
+        </tr>
+      `;
+      updateSortHeaderIcons('calc');
+
+      // Render Matching Companies Rows
+      document.getElementById('calc-matches-tbody').innerHTML = displayEntries.map((entry, idx) => {
+        const r = entry.mainRow;
+        const comp = entry.companyName;
+        const listDate = formatDateStr(r['Listing Date']);
+        const issuePrice = parsePriceNum(r['Issue Price']);
+        const issueSize  = parsePriceNum(r['Issue Size']);
+
+        const brlmHtml = entry.brlms.size > 0
+          ? [...entry.brlms].map(b =>
+              `<span onclick="selectEntityAndOpenModal('BRLM', '${b.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(b, rawTableQ)}</span>`
+            ).join(', ')
+          : '<span class="ret-muted">—</span>';
+
+        const anchorHtml = entry.anchors.size > 0
+          ? [...entry.anchors].map(a =>
+              `<span onclick="selectEntityAndOpenModal('ANCHOR', '${a.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(a, rawTableQ)}</span>`
+            ).join(', ')
+          : '<span class="ret-muted">Fixed Price / Unanchored</span>';
+
+        return `
+          <tr>
+            <td class="col-sno">${idx + 1}</td>
+            <td class="text-left col-sticky-name">
+              <span onclick="openCompanyDayCloseModal('${comp.replace(/'/g, "\\'")}')" class="company-link" title="Click to view full Day-Close Price (₹) & Return trajectory">${highlightMatch(comp, rawTableQ)}</span>
+            </td>
+            <td class="text-left mono">${listDate}</td>
+            <td class="text-right">${issuePrice !== null ? '₹' + issuePrice.toFixed(2) : '—'}</td>
+            <td class="text-right">${issueSize !== null ? '₹' + issueSize.toFixed(2) : '—'}</td>
+            <td class="text-left">${brlmHtml}</td>
+            <td class="text-left col-anchor-wrap">${anchorHtml}</td>
+            ${HORIZONS.map(h => {
+              const pVal = getResolvedClosePrice(r, h);
+              const rVal = getResolvedReturnPct(r, h);
+              if (calcDisplayMode === 'PRICE') return formatPriceTd(pVal);
+              if (calcDisplayMode === 'BOTH')  return formatBothTd(pVal, rVal);
+              return formatReturnTd(rVal);
+            }).join('')}
+          </tr>
+        `;
+      }).join('');
+
+      syncTopScrollbarWidths();
+    }
+
+    function setCalcTableDisplayMode(mode) {
+      calcDisplayMode = mode;
+      document.getElementById('btn-calc-mode-pct').classList.toggle('active', mode === 'PCT');
+      document.getElementById('btn-calc-mode-price').classList.toggle('active', mode === 'PRICE');
+      document.getElementById('btn-calc-mode-both').classList.toggle('active', mode === 'BOTH');
+      renderCalculatorView();
+    }
+
+    // =========================================================================
+    // 6. TAB 2: FULL MAIN DATABASE (WITH RUPEE DAY-CLOSE TOGGLE)
+    // =========================================================================
+    function initMainDatabaseFilters() {
+      const entries = [...companyLookupMap.values()];
+      const sectors = [...new Set(entries.map(e => String(e.mainRow['Sector'] || '').trim()).filter(Boolean))].sort();
+      document.getElementById('main-sector-select').innerHTML =
+        `<option value="ALL">All Sectors (${sectors.length})</option>` +
+        sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+
+      const brlmsSet = new Set();
+      entries.forEach(e => e.brlms.forEach(b => brlmsSet.add(b)));
+      const brlms = [...brlmsSet].sort();
+      document.getElementById('main-brlm-select').innerHTML =
+        `<option value="ALL">All BRLMs (${brlms.length})</option>` +
+        brlms.map(b => `<option value="${b}">${b}</option>`).join('');
+    }
+
+    function setMainDisplayMode(mode) {
+      mainDisplayMode = mode;
+      document.getElementById('btn-main-mode-pct').classList.toggle('active', mode === 'PCT');
+      document.getElementById('btn-main-mode-price').classList.toggle('active', mode === 'PRICE');
+      document.getElementById('btn-main-mode-both').classList.toggle('active', mode === 'BOTH');
+      renderMainDatabase();
+    }
+
+    function renderMainDatabase() {
+      const rawQuery = (document.getElementById('main-search')?.value || '').trim();
+      const q = rawQuery.toLowerCase();
+      const sectorFilter = document.getElementById('main-sector-select').value;
+      const brlmFilter   = document.getElementById('main-brlm-select').value;
+      const sortBy       = document.getElementById('main-sort-select').value;
+
+      let entries = [...companyLookupMap.values()].filter(entry => {
+        const r = entry.mainRow;
+        const comp = entry.companyName;
+        const sector = String(r['Sector'] || '').trim();
+        const ticker = String(r['Stock Tickers'] || '').trim();
+        const aStr = [...entry.anchors].join(' ');
+        const bStr = [...entry.brlms].join(' ');
+
+        if (sectorFilter !== 'ALL' && sector !== sectorFilter) return false;
+        if (brlmFilter !== 'ALL' && !entry.brlms.has(brlmFilter)) return false;
+        if (q && !`${comp} ${sector} ${ticker} ${aStr} ${bStr}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      if (tableSortState.main.key) {
+        const { key, dir } = tableSortState.main;
+        entries.sort((a, b) => compareSortValues(getEntrySortValue(a, key), getEntrySortValue(b, key), dir));
+      } else if (sortBy === 'size-desc') {
+        entries.sort((a, b) => (parsePriceNum(b.mainRow['Issue Size']) || 0) - (parsePriceNum(a.mainRow['Issue Size']) || 0));
+      } else if (sortBy === '1d-desc') {
+        entries.sort((a, b) => (getResolvedReturnPct(b.mainRow, HORIZONS[0]) ?? -9999) - (getResolvedReturnPct(a.mainRow, HORIZONS[0]) ?? -9999));
+      } else if (sortBy === 'since-desc') {
+        entries.sort((a, b) => (getResolvedReturnPct(b.mainRow, HORIZONS[9]) ?? -9999) - (getResolvedReturnPct(a.mainRow, HORIZONS[9]) ?? -9999));
+      }
+
+      document.getElementById('main-row-count').textContent = `${entries.length} IPOs`;
+
+      document.getElementById('main-thead').innerHTML = `
+        <tr>
+          <th class="col-sno">#</th>
+          <th class="text-left col-sticky-name" data-sort-key="company" onclick="toggleTableSort('main', 'company')">Company Name (Click for Day-Close Tape)</th>
+          <th class="text-left" data-sort-key="sector" onclick="toggleTableSort('main', 'sector')">Sector</th>
+          <th class="text-left" data-sort-key="date" onclick="toggleTableSort('main', 'date')">Listing Date</th>
+          <th class="text-right" data-sort-key="price" onclick="toggleTableSort('main', 'price')">Issue Price</th>
+          <th class="text-right" data-sort-key="size" onclick="toggleTableSort('main', 'size')">Issue Size (Cr)</th>
+          <th class="text-left" data-sort-key="brlm" onclick="toggleTableSort('main', 'brlm')">BRLM</th>
+          <th class="text-left col-anchor-wrap" data-sort-key="anchors" onclick="toggleTableSort('main', 'anchors')">Names of Anchors</th>
+          ${HORIZONS.map(h => `
+            <th class="text-right" data-sort-key="${h.key}" onclick="toggleTableSort('main', '${h.key}')">
+              ${mainDisplayMode === 'PRICE' ? h.mainPriceCol : (mainDisplayMode === 'BOTH' ? h.shortLabel + ' (₹ & %)' : h.mainRetCol)}
+            </th>
+          `).join('')}
+          <th class="text-right" data-sort-key="qib" onclick="toggleTableSort('main', 'qib')">Anchor Alloc % of QIB</th>
+        </tr>
+      `;
+      updateSortHeaderIcons('main');
+
+      document.getElementById('main-tbody').innerHTML = entries.map((entry, idx) => {
+        const r = entry.mainRow;
+        const comp = entry.companyName;
+        const sector = String(r['Sector'] || '—').trim();
+        const listDate = formatDateStr(r['Listing Date']);
+        const issuePrice = parsePriceNum(r['Issue Price']);
+        const issueSize  = parsePriceNum(r['Issue Size']);
+        const qibAlloc   = r['Anchor Allocation % of QIB'];
+
+        const brlmHtml = entry.brlms.size > 0
+          ? [...entry.brlms].map(b =>
+              `<span onclick="selectEntityAndOpenModal('BRLM', '${b.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(b, rawQuery)}</span>`
+            ).join(', ')
+          : '<span class="ret-muted">—</span>';
+
+        const anchorHtml = entry.anchors.size > 0
+          ? [...entry.anchors].map(a =>
+              `<span onclick="selectEntityAndOpenModal('ANCHOR', '${a.replace(/'/g, "\\'")}')" class="entity-link">${highlightMatch(a, rawQuery)}</span>`
+            ).join(', ')
+          : '<span class="ret-muted">Fixed Price Issue</span>';
+
+        const qibNum = parseReturnPct(qibAlloc);
+        const qibTd = qibNum !== null
+          ? `<td class="text-right">${qibNum.toFixed(2)}%</td>`
+          : `<td class="text-right ret-muted">${String(qibAlloc || '—').includes('Fixed Price') ? 'Fixed Price' : '—'}</td>`;
+
+        return `
+          <tr>
+            <td class="col-sno">${idx + 1}</td>
+            <td class="text-left col-sticky-name">
+              <span onclick="openCompanyDayCloseModal('${comp.replace(/'/g, "\\'")}')" class="company-link">${highlightMatch(comp, rawQuery)}</span>
+            </td>
+            <td class="text-left">${highlightMatch(sector, rawQuery)}</td>
+            <td class="text-left mono">${listDate}</td>
+            <td class="text-right">${issuePrice !== null ? '₹' + issuePrice.toFixed(2) : '—'}</td>
+            <td class="text-right">${issueSize !== null ? '₹' + issueSize.toFixed(2) : '—'}</td>
+            <td class="text-left">${brlmHtml}</td>
+            <td class="text-left col-anchor-wrap">${anchorHtml}</td>
+            ${HORIZONS.map(h => {
+              const pVal = getResolvedClosePrice(r, h);
+              const rVal = getResolvedReturnPct(r, h);
+              if (mainDisplayMode === 'PRICE') return formatPriceTd(pVal);
+              if (mainDisplayMode === 'BOTH')  return formatBothTd(pVal, rVal);
+              return formatReturnTd(rVal);
+            }).join('')}
+            ${qibTd}
+          </tr>
+        `;
+      }).join('');
+
+      syncTopScrollbarWidths();
+    }
+
+    function resetMainFilters() {
+      document.getElementById('main-search').value = '';
+      document.getElementById('main-sector-select').value = 'ALL';
+      document.getElementById('main-brlm-select').value = 'ALL';
+      document.getElementById('main-sort-select').value = 'default';
+      tableSortState.main.key = null;
+      updateSortHeaderIcons('main');
+      renderMainDatabase();
+    }
+
+    // =========================================================================
+    // 7. INTERACTIVE DAY-CLOSE & PRICE TRAJECTORY MODAL / DRAWER
+    //    (Triggers when clicking any Company Name, Anchor Name, or BRLM Name)
+    // =========================================================================
+    function openCompanyDayCloseModal(companyName) {
+      const entry = companyLookupMap.get(normKey(companyName));
+      if (!entry) return;
+
+      const r = entry.mainRow;
+      const issuePrice = parsePriceNum(r['Issue Price']);
+      const issueSize  = parsePriceNum(r['Issue Size']);
+      const sector     = String(r['Sector'] || '—');
+      const listDate   = formatDateStr(r['Listing Date']);
+      const ticker     = String(r['Stock Tickers'] || '—');
+      const anchorPctIssue = parseReturnPct(r['Anchor Allocation % of Issue']);
+      const anchorPctQib   = parseReturnPct(r['Anchor Allocation % of QIB']);
+
+      document.getElementById('drawer-type-badge').textContent = 'COMPANY DAY-CLOSE TAPE';
+      document.getElementById('drawer-title').textContent = entry.companyName;
+      document.getElementById('drawer-subtitle').textContent =
+        `Sector: ${sector}  |  Listing Date: ${listDate}  |  Ticker: ${ticker}  |  Issue Size: ${issueSize !== null ? '₹' + issueSize.toFixed(2) + ' Cr' : '—'}`;
+
+      const milestones = [
+        { label: 'Issue Price', price: issuePrice, ret: 0, isBase: true },
+        ...HORIZONS.map(h => ({
+          label: h.mainPriceCol,
+          shortLabel: h.shortLabel,
+          price: getResolvedClosePrice(r, h),
+          ret: getResolvedReturnPct(r, h),
+          isBase: false
+        }))
+      ];
+
+      const brlmLinks = entry.brlms.size > 0
+        ? [...entry.brlms].map(b => `<span onclick="selectEntityAndOpenModal('BRLM', '${b.replace(/'/g, "\\'")}')" class="entity-link">${b}</span>`).join(', ')
+        : '—';
+
+      const anchorLinks = entry.anchors.size > 0
+        ? [...entry.anchors].map(a => `<span onclick="selectEntityAndOpenModal('ANCHOR', '${a.replace(/'/g, "\\'")}')" class="entity-link">${a}</span>`).join(', ')
+        : 'Fixed Price / Unanchored Issue';
+
+      document.getElementById('drawer-body-content').innerHTML = `
+        <!-- 11-Milestone Day-Close Price & Return Strip -->
+        <div class="milestone-grid">
+          ${milestones.map(m => {
+            const pStr = m.price !== null ? '₹' + m.price.toFixed(2) : '—';
+            let rHtml = '<span class="ret-muted">Base Issue</span>';
+            if (!m.isBase) {
+              rHtml = m.ret !== null ? formatReturnHtml(m.ret) : '<span class="ret-muted">Pending</span>';
+            }
+            return `
+              <div class="milestone-card ${m.label === 'Price Today' ? 'gold-top' : ''}">
+                <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--slate-500);">${m.label}</div>
+                <div class="mono" style="font-size: 14px; font-weight: 800; color: var(--navy-900); margin: 4px 0 2px 0;">${pStr}</div>
+                <div class="mono" style="font-size: 11px;">${rHtml}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- Interactive Chart.js Price (₹) & Return (%) Curve -->
+        <div class="panel-card" style="margin-bottom: 14px;">
+          <div class="panel-header" style="margin-bottom: 10px;">
+            <span class="panel-title">Post-Listing Rupee Price (₹) &amp; Return (%) Trajectory</span>
+            <span class="gold-pill">Interactive Milestone Curve</span>
+          </div>
+          <div style="height: 290px; position: relative;">
+            <canvas id="drawer-trajectory-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Syndicate & Institutional Allocation Metadata -->
+        <div class="panel-card" style="margin-bottom: 0;">
+          <div class="panel-header" style="margin-bottom: 10px;">
+            <span class="panel-title">Institutional Syndicate &amp; Anchor Book Details</span>
+          </div>
+          <table class="fin-table">
+            <tbody>
+              <tr>
+                <td class="text-left" style="font-weight: 700; width: 220px;">Book Running Lead Manager (BRLM)</td>
+                <td class="text-left">${brlmLinks}</td>
+              </tr>
+              <tr>
+                <td class="text-left" style="font-weight: 700;">Participating Anchor Investors (${entry.anchors.size})</td>
+                <td class="text-left" style="white-space: normal; line-height: 1.5;">${anchorLinks}</td>
+              </tr>
+              <tr>
+                <td class="text-left" style="font-weight: 700;">Anchor Allocation Telemetry</td>
+                <td class="text-left mono">
+                  Anchor % of Total Issue: <strong>${anchorPctIssue !== null ? anchorPctIssue.toFixed(2) + '%' : '—'}</strong> &nbsp;|&nbsp;
+                  Anchor % of QIB Portion: <strong>${anchorPctQib !== null ? anchorPctQib.toFixed(2) + '%' : '—'}</strong>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      document.getElementById('drilldown-drawer').classList.remove('hidden');
+
+      // Render Chart.js Trajectory
+      const chartCanvas = document.getElementById('drawer-trajectory-chart');
+      if (chartCanvas) {
+        if (drawerChartInstance) drawerChartInstance.destroy();
+        const labels = milestones.map(m => m.label);
+        const prices = milestones.map(m => m.price);
+        const rets   = milestones.map(m => m.ret);
+
+        drawerChartInstance = new Chart(chartCanvas, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Closing Share Price (₹)',
+                data: prices,
+                borderColor: '#0F172A',
+                backgroundColor: 'rgba(15, 23, 42, 0.08)',
+                borderWidth: 2.5,
+                pointBackgroundColor: '#D4AF37',
+                pointBorderColor: '#0F172A',
+                pointRadius: 5,
+                yAxisID: 'yPrice',
+                spanGaps: true,
+                tension: 0.15
+              },
+              {
+                label: 'Cumulative Return (%)',
+                data: rets,
+                borderColor: '#2563EB',
+                borderDash: [5, 4],
+                borderWidth: 2,
+                pointBackgroundColor: '#2563EB',
+                pointRadius: 4,
+                yAxisID: 'yRet',
+                spanGaps: true,
+                tension: 0.15
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { font: { weight: '700', size: 11.5 }, color: '#0F172A' }
+              }
+            },
+            scales: {
+              yPrice: {
+                type: 'linear',
+                position: 'left',
+                title: { display: true, text: 'Share Price (₹)', font: { weight: '700', size: 11 } },
+                ticks: { callback: v => '₹' + v }
+              },
+              yRet: {
+                type: 'linear',
+                position: 'right',
+                title: { display: true, text: 'Return vs. Issue Price (%)', font: { weight: '700', size: 11 } },
+                grid: { drawOnChartArea: false },
+                ticks: { callback: v => (v > 0 ? '+' : '') + v + '%' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // Clicking an Anchor or BRLM loads it into the Calculator AND shoots up its full Day-Close & Return Breakdown Modal
+    function selectEntityAndOpenModal(entityType, entityName) {
+      switchPage('calc');
+      document.getElementById('search-anchor-1').value = '';
+      document.getElementById('search-anchor-2').value = '';
+      document.getElementById('search-brlm-calc').value = '';
+      populateCalculatorDropdowns(true);
+
+      if (entityType === 'ANCHOR') {
+        document.getElementById('select-anchor-1').value = entityName;
+        document.getElementById('select-anchor-2').value = 'NONE';
+        document.getElementById('select-brlm-calc').value = 'ALL';
+      } else {
+        document.getElementById('select-anchor-1').value = 'ALL';
+        document.getElementById('select-anchor-2').value = 'NONE';
+        document.getElementById('select-brlm-calc').value = entityName;
+      }
+
+      renderCalculatorView();
+      openCurrentSyndicateDayCloseModal();
+    }
+
+    function openCurrentSyndicateDayCloseModal() {
+      const { matched, selA1, selA2, selB } = getFilteredCalculatorEntries();
+      const parts = [];
+      if (selA1 !== 'ALL') parts.push(`Anchor 1: ${selA1}`);
+      if (selA2 !== 'NONE') parts.push(`Anchor 2: ${selA2}`);
+      if (selB !== 'ALL') parts.push(`BRLM: ${selB}`);
+      const titleStr = parts.length > 0 ? parts.join(' × ') : 'All Tracked SME IPOs';
+
+      document.getElementById('drawer-type-badge').textContent = 'SYNDICATE DAY-CLOSE BREAKDOWN';
+      document.getElementById('drawer-title').textContent = titleStr;
+      document.getElementById('drawer-subtitle').textContent =
+        `Showing complete Rupee Day Closes (₹) and Percentage Returns (%) across all 10 horizons for ${matched.length} matched IPOs`;
+
+      document.getElementById('drawer-body-content').innerHTML = `
+        <div class="panel-card" style="margin-bottom: 0;">
+          <div class="panel-header" style="margin-bottom: 10px;">
+            <span class="panel-title">Complete Deal-by-Deal Rupee Day Closes (₹) &amp; Return (%) Tape</span>
+            <span class="gold-pill">${matched.length} IPOs</span>
+          </div>
+          <div class="table-viewport" style="max-height: 75vh;">
+            <table class="fin-table">
+              <thead>
+                <tr>
+                  <th class="col-sno">#</th>
+                  <th class="text-left col-sticky-name">Company (Click for Chart)</th>
+                  <th class="text-left">Listing Date</th>
+                  <th class="text-right">Issue Price</th>
+                  ${HORIZONS.map(h => `<th class="text-right">${h.mainPriceCol} (${h.shortLabel} %)</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${matched.map((entry, i) => {
+                  const r = entry.mainRow;
+                  const comp = entry.companyName;
+                  const ip = parsePriceNum(r['Issue Price']);
+                  return `
+                    <tr>
+                      <td class="col-sno">${i + 1}</td>
+                      <td class="text-left col-sticky-name">
+                        <span onclick="openCompanyDayCloseModal('${comp.replace(/'/g, "\\'")}')" class="company-link">${comp}</span>
+                      </td>
+                      <td class="text-left mono">${formatDateStr(r['Listing Date'])}</td>
+                      <td class="text-right price-cell">${ip !== null ? '₹' + ip.toFixed(2) : '—'}</td>
+                      ${HORIZONS.map(h => formatBothTd(getResolvedClosePrice(r, h), getResolvedReturnPct(r, h))).join('')}
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('drilldown-drawer').classList.remove('hidden');
+    }
+
+    function closeDrilldownDrawer() {
+      document.getElementById('drilldown-drawer').classList.add('hidden');
+    }
+
+    function handleBackdropClick(event) {
+      if (event.target.id === 'drilldown-drawer') {
+        closeDrilldownDrawer();
+      }
+    }
+
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeDrilldownDrawer();
+    });
+
+    // =========================================================================
+    // 8. SORTING, SCROLLBAR SYNC & CSV EXPORT UTILITIES
+    // =========================================================================
+    function getEntrySortValue(entry, key) {
+      const r = entry.mainRow;
+      if (key === 'company') return entry.companyName.toLowerCase();
+      if (key === 'sector')  return String(r['Sector'] || '').toLowerCase();
+      if (key === 'brlm')    return [...entry.brlms].join(', ').toLowerCase();
+      if (key === 'anchors') return [...entry.anchors].join(', ').toLowerCase();
+      if (key === 'date')    return Date.parse(String(r['Listing Date'] || '')) || null;
+      if (key === 'price')   return parsePriceNum(r['Issue Price']);
+      if (key === 'size')    return parsePriceNum(r['Issue Size']);
+      if (key === 'qib')     return parseReturnPct(r['Anchor Allocation % of QIB']);
+      const hObj = HORIZONS.find(h => h.key === key);
+      if (hObj) return getResolvedReturnPct(r, hObj);
+      return null;
+    }
+
+    function compareSortValues(valA, valB, dir) {
+      const invA = valA === null || valA === undefined || valA === '' || Number.isNaN(valA);
+      const invB = valB === null || valB === undefined || valB === '' || Number.isNaN(valB);
+      if (invA && invB) return 0;
+      if (invA) return 1;
+      if (invB) return -1;
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return dir === 'asc' ? valA - valB : valB - valA;
+    }
+
+    function toggleTableSort(tableKey, colKey) {
+      const st = tableSortState[tableKey];
+      if (st.key === colKey) {
+        st.dir = st.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        st.key = colKey;
+        const textCols = ['company', 'sector', 'brlm', 'anchors'];
+        st.dir = textCols.includes(colKey) ? 'asc' : 'desc';
+      }
+      if (tableKey === 'calc') {
+        renderCalculatorView();
+      } else {
+        document.getElementById('main-sort-select').value = 'default';
+        renderMainDatabase();
+      }
+    }
+
+    function onMainDropdownSortChange() {
+      tableSortState.main.key = null;
+      renderMainDatabase();
+    }
+
+    function updateSortHeaderIcons(tableKey) {
+      const tableId = tableKey === 'calc' ? 'table-calc-matches' : 'table-main';
+      const st = tableSortState[tableKey];
+      document.querySelectorAll(`#${tableId} thead th[data-sort-key]`).forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.getAttribute('data-sort-key') === st.key) {
+          th.classList.add(st.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+      });
+    }
+
+    const scrollPairs = [
+      { top: 'top-scroll-calc', inner: 'top-inner-calc', body: 'body-scroll-calc', table: 'table-calc-matches' },
+      { top: 'top-scroll-main', inner: 'top-inner-main', body: 'body-scroll-main', table: 'table-main' }
+    ];
+
+    function initTopScrollbars() {
+      scrollPairs.forEach(pair => {
+        const topEl = document.getElementById(pair.top);
+        const bodyEl = document.getElementById(pair.body);
+        if (!topEl || !bodyEl) return;
+        let lockTop = false;
+        let lockBody = false;
+        topEl.addEventListener('scroll', () => {
+          if (!lockTop) { lockBody = true; bodyEl.scrollLeft = topEl.scrollLeft; }
+          lockTop = false;
+        });
+        bodyEl.addEventListener('scroll', () => {
+          if (!lockBody) { lockTop = true; topEl.scrollLeft = bodyEl.scrollLeft; }
+          lockBody = false;
+        });
+      });
+      syncTopScrollbarWidths();
+    }
+
+    function syncTopScrollbarWidths() {
+      setTimeout(() => {
+        scrollPairs.forEach(pair => {
+          const innerEl = document.getElementById(pair.inner);
+          const tableEl = document.getElementById(pair.table);
+          if (innerEl && tableEl) {
+            innerEl.style.width = tableEl.scrollWidth + 'px';
+          }
+        });
+      }, 25);
+    }
+
+    window.addEventListener('resize', syncTopScrollbarWidths);
+
+    function exportTableToCSV(tableId, filename) {
+      const tableEl = document.getElementById(tableId);
+      if (!tableEl) return;
+      const csvRows = [];
+      const thEls = tableEl.querySelectorAll('thead tr th');
+      csvRows.push([...thEls].map(th => `"${th.textContent.replace(/[⇅▲▼]/g, '').trim().replace(/"/g, '""')}"`).join(','));
+      tableEl.querySelectorAll('tbody tr').forEach(tr => {
+        const tdEls = tr.querySelectorAll('td');
+        if (!tdEls.length) return;
+        csvRows.push([...tdEls].map(td => `"${td.textContent.replace(/\s+/g, ' ').trim().replace(/"/g, '""')}"`).join(','));
+      });
+      const blob = new Blob(['\uFEFF' + csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // =========================================================================
+    // 9. SEQUENTIAL PAPAPARSE GOOGLE SHEET SYNC + .XLSX FALLBACK
+    // =========================================================================
+    function matrixToPandasJson(matrix) {
+      if (!matrix || matrix.length === 0) return [];
+      const headerRow = matrix[0] || [];
+      let maxCols = headerRow.length;
+      for (let i = 0; i < Math.min(25, matrix.length); i++) {
+        if (matrix[i] && matrix[i].length > maxCols) maxCols = matrix[i].length;
+      }
+
+      let detectedHeaderRowIdx = 0;
+      for (let r = 0; r < Math.min(6, matrix.length); r++) {
+        const rowStr = (matrix[r] || []).map(x => String(x || '').trim().toLowerCase());
+        if (rowStr.includes('company') || rowStr.includes('anchornormalized') || rowStr.includes('listing date') || rowStr.includes('1d return')) {
+          detectedHeaderRowIdx = r;
+          break;
+        }
+      }
+
+      const activeHeader = matrix[detectedHeaderRowIdx] || [];
+      const colKeys = [];
+      for (let c = 0; c < maxCols; c++) {
+        const cellVal = activeHeader[c] !== undefined && activeHeader[c] !== null ? String(activeHeader[c]).trim() : '';
+        colKeys.push(cellVal === '' ? `Unnamed: ${c}` : cellVal);
+      }
+
+      const rows = [];
+      for (let r = detectedHeaderRowIdx + 1; r < matrix.length; r++) {
+        const rowArr = matrix[r];
+        if (!rowArr || rowArr.every(cell => String(cell ?? '').trim() === '')) continue;
+        const obj = {};
+        for (let c = 0; c < maxCols; c++) {
+          const val = rowArr[c] !== undefined && rowArr[c] !== null ? rowArr[c] : '';
+          obj[colKeys[c]] = val;
+          obj[`Unnamed: ${c}`] = val;
+          obj[`__col_${c}`] = val;
+          if (c === 0) obj[' '] = val;
+        }
+        rows.push(obj);
+      }
+      return rows;
+    }
+
+    function fetchSheetCsvViaPapa(sheetName) {
+      const url = `https://docs.google.com/spreadsheets/d/${LIVE_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+      return new Promise((resolve, reject) => {
+        Papa.parse(url, {
+          download: true,
+          header: false,
+          skipEmptyLines: true,
+          complete: results => {
+            if (results && results.data && results.data.length > 1) {
+              resolve(matrixToPandasJson(results.data));
+            } else {
+              reject(new Error('Empty CSV'));
+            }
+          },
+          error: err => reject(err)
+        });
+      });
+    }
+
+    function parseWorkbookIntoDb(arrayBuffer) {
+      const data = new Uint8Array(arrayBuffer);
+      const workbook = XLSX.read(data, { type: 'array' });
+      let loadedSheets = 0;
+
+      workbook.SheetNames.forEach(sheetName => {
+        const norm = sheetName.trim().toLowerCase();
+        if (norm.includes('beeline')) return;
+        const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, raw: false, defval: '' });
+        const rows = matrixToPandasJson(matrix);
+        if (!rows || rows.length === 0) return;
+
+        if (norm === 'main database') {
+          db.mainDatabase = rows;
+          loadedSheets++;
+        } else if (norm === 'anchor and brlm_feeder') {
+          db.feeder = rows;
+          loadedSheets++;
+        }
+      });
+      return loadedSheets;
+    }
+
+    function dismissLoadingOverlay() {
+      const overlay = document.getElementById('app-loading-overlay');
+      if (overlay && !overlay.classList.contains('fade-out')) {
+        overlay.classList.add('fade-out');
+        setTimeout(() => { overlay.style.display = 'none'; }, 450);
+      }
+    }
+
+    async function syncLiveGoogleSheetData() {
+      const statusEl = document.getElementById('status-bar');
+      const dotEl = document.getElementById('feed-status-dot');
+      let syncedCount = 0;
+
+      // Step 1: Sequential PapaParse CSV sync for 'Main Database' then 'Anchor and BRLM_feeder'
+      try {
+        const mainRows = await fetchSheetCsvViaPapa('Main Database');
+        if (mainRows && mainRows.length > 0) {
+          db.mainDatabase = mainRows;
+          syncedCount++;
+        }
+        const feederRows = await fetchSheetCsvViaPapa('Anchor and BRLM_feeder');
+        if (feederRows && feederRows.length > 0) {
+          db.feeder = feederRows;
+          syncedCount++;
+        }
+      } catch (e) {}
+
+      // Step 2: If direct gviz CSV was blocked, attempt single-request proxied .XLSX fetch
+      if (syncedCount === 0) {
+        try {
+          const targetUrl = `https://docs.google.com/spreadsheets/d/${LIVE_SPREADSHEET_ID}/export?format=xlsx`;
+          const fetchUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+          const res = await fetch(fetchUrl);
+          if (res.ok) {
+            const buf = await res.arrayBuffer();
+            syncedCount = parseWorkbookIntoDb(buf);
+          }
+        } catch (err) {}
+      }
+
+      refreshAllViews();
+
+      if (syncedCount > 0) {
+        statusEl.textContent = `Live Institutional Feed Active (${companyLookupMap.size} SME IPOs Indexed)`;
+        dotEl.style.backgroundColor = '#4ADE80';
+      } else {
+        statusEl.textContent = `Ready · Showing Pre-Bundled Institutional Dataset (Use ⬆ Upload .XLSX for Full 443-IPO File)`;
+        dotEl.style.backgroundColor = '#D4AF37';
+      }
+
+      dismissLoadingOverlay();
+    }
+
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById('status-bar');
+      const dotEl = document.getElementById('feed-status-dot');
+      statusEl.textContent = `Loading ${file.name}...`;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const loaded = parseWorkbookIntoDb(e.target.result);
+          if (loaded > 0) {
+            refreshAllViews();
+            statusEl.textContent = `Loaded ${file.name} (${companyLookupMap.size} Unique SME IPOs Indexed)`;
+            dotEl.style.backgroundColor = '#4ADE80';
+          }
+        } catch (err) {
+          statusEl.textContent = `Error reading file: ${err.message}`;
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // =========================================================================
+    // 10. NAVIGATION & INITIALIZATION
+    // =========================================================================
+    function switchPage(pageId) {
+      ['calc', 'main'].forEach(id => {
+        document.getElementById(`page-${id}`).classList.toggle('hidden', id !== pageId);
+        document.getElementById(`nav-${id}`).classList.toggle('active', id === pageId);
+      });
+      syncTopScrollbarWidths();
+    }
+
+    function refreshAllViews() {
+      buildCompanyMasterIndex();
+      populateCalculatorDropdowns(true);
+      renderCalculatorView();
+      initMainDatabaseFilters();
+      renderMainDatabase();
+      syncTopScrollbarWidths();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initTopScrollbars();
+      refreshAllViews();
+      syncLiveGoogleSheetData();
+    });
+  </script>
+</body>
+</html>
